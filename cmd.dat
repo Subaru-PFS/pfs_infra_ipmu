@@ -1,0 +1,3 @@
+ldapadd    -H ldap://localhost -D cn=admin,dc=pfs,dc=ipmu,dc=jp -W -x < 
+ldapmodify -H ldap://localhost -D cn=admin,dc=pfs,dc=ipmu,dc=jp -W -x <
+

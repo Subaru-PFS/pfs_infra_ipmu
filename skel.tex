@@ -1,0 +1,72 @@
+\documentclass[12pt]{jarticle}
+\pagestyle{empty}
+
+%\setlength\hoffset           {-10.4mm} % 15mm offset by *sidemargin
+%\setlength\voffset           {-10.4mm} % 15mm offset by topmargin
+
+%\setlength\columnsep         {}        %% NO CHANGE
+\setlength\oddsidemargin     {-10.4mm}
+\setlength\evensidemargin    {\oddsidemargin}
+\setlength\footskip          {12.5mm}
+\setlength\headheight        {10.0mm}
+\setlength\headsep           {4.0mm}
+\setlength\topmargin         {-10.4mm}
+%\setlength\marginparpush     {7pt}     %% NO CHANGE
+\setlength\marginparsep      {0.0mm}
+\setlength\marginparwidth    {0.0mm}
+
+\setlength\textheight        {240.5mm} %% 297mm - 30mm - 12.5mm - 14mm
+\setlength\textwidth         {180mm} %% 210mm - 30mm
+
+\begin{document}
+
+Dear \sf{@@EMAIL@@}
+
+Your account name and initial password is
+
+\begin{center}
+Username: {\Huge{\tt \verb|@@USER@@|}} \\
+ \\
+Password: {\Huge{\tt \verb|@@PASS@@|}}
+\end{center}
+
+Sample letters: 
+{\tt 0123456789} / 
+{\tt abcdefghijklmnopqrstuvwxyz} / 
+{\tt ABCDEFGHIJKLMNOPQRSTUVWXYZ}
+
+ 
+
+Please change your (initial) password from the following URL immediately.
+If you don't change your password in seven days, 
+your account will be locked.
+
+https://pfs.ipmu.jp/ldap-manip/
+
+ 
+
+When changing your password, new one will be checked by password strength 
+checker in the system.
+You MUST get at least seven points regarding to the following rules.
+Each charactor will be categorized into 'UPPER-CASE', 'lower-case', numeric, and 
+others (symbols).
+
+\begin{itemize}
+  \item Over eight charactors, adding one point
+  \item Contains one (charactor) category, adding one point per each category
+  \item More than two charactors in the same category, adding one more point per each category
+  \item More than two different symbols, adding one point
+  \item More than three words, adding one point
+  \item More than four words, adding one more point
+\end{itemize}
+
+Example for {\tt abc123DEF}, this password will get seven point.
+
+\begin{itemize}
+  \item Over eight charactors, adding one point
+  \item Contains 'UPPER-CASE', 'lower-case', and numeric, adding three points
+  \item More than two charactors for three category, adding three points
+\end{itemize}
+
+
+\end{document}
