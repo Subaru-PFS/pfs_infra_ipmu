@@ -2,9 +2,13 @@
 
 use strict;
 
+my $is_reset   = 0;
+
 my $fname_addr = $ARGV[0];
 my $fname_uid  = '00uid.list';
 my $fname_tex  = 'skel.tex';
+
+if (defined($ARGV[1])) {$is_reset = 1; }
 
 my $ldif_dc   = 'dc=web,dc=pfs,dc=ipmu,dc=jp';
 
@@ -30,24 +34,33 @@ foreach (<INDAT>) {
         $last_uid += 1;
         $uids{$cur{uname}} = $last_uid;
     }
-    &OutLdif($fname_addr, $cur{uname}, $cur{email}, $cur{pass}, $uids{$cur{uname}});
+    if ($is_reset == 0) {
+        &OutLdif($fname_addr, $cur{uname}, $cur{email}, $cur{pass}, $uids{$cur{uname}});
+    } else {
+        &OutLdifMod($fname_addr, $cur{uname}, $cur{email}, $cur{pass}, $uids{$cur{uname}});
+    }
     &ModTexSkel($fname_tex, $fname_addr, $cur{uname}, $cur{email}, $cur{pass});
     push(@all_new, $cur{uname});
 }
 close(INDAT);
 &SaveUid($fname_uid, \%uids);
 
-open(OALL, "> $fname_addr.mga.$post_ldif");
-print OALL <<__END_OALL;
+if ($is_reset == 0) {&OutLdifMga($fname_addr, \@all_new); }
+
+exit;
+
+sub OutLdifMga {
+  my ($fname_addr, $all_new) = @_;
+  open(OALL, "> $fname_addr.mga.$post_ldif");
+  print OALL <<__END_OALL;
 dn: cn=all,ou=Groups,$ldif_dc
 changetype: modify
 add: memberUid
 __END_OALL
-foreach (@all_new) {print OALL "memberUid: $_\n"; }
-print OALL "\n";
-close(OALL);
-
-exit;
+  foreach (@$all_new) {print OALL "memberUid: $_\n"; }
+  print OALL "\n";
+  close(OALL);
+}
 
 sub ReadUid {
     my ($fname, $uid) = @_;
@@ -125,6 +138,20 @@ gidNumber: 2000
 homeDirectory: /home/$uname
 mail: $addr
 loginShell: /bin/tcsh
+userPassword: $pass
+
+__END_ODAT
+    close(ODAT);
+}
+
+sub OutLdifMod {
+    my ($supname, $uname, $addr, $pass, $uid) = @_;
+    if (! defined($uid)) {$uid = 65542; }
+    open(ODAT, "> $supname.$uname.$post_ldif");
+    print ODAT <<__END_ODAT;
+dn: cn=$uname,ou=Users,$ldif_dc
+changetype: modify
+replace: userPassword
 userPassword: $pass
 
 __END_ODAT
