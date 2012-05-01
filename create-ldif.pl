@@ -45,15 +45,15 @@ foreach (<INDAT>) {
 close(INDAT);
 &SaveUid($fname_uid, \%uids);
 
-if ($is_reset == 0) {&OutLdifMga($fname_addr, \@all_new); }
+if ($is_reset == 0) {&OutLdifMga($fname_addr, "tech", \@all_new); }
 
 exit;
 
 sub OutLdifMga {
-  my ($fname_addr, $all_new) = @_;
-  open(OALL, "> $fname_addr.mga.$post_ldif");
+  my ($fname_addr, $add_group, $all_new) = @_;
+  open(OALL, ">> $fname_addr.mga.$post_ldif");
   print OALL <<__END_OALL;
-dn: cn=all,ou=Groups,$ldif_dc
+dn: cn=$add_group,ou=Groups,$ldif_dc
 changetype: modify
 add: memberUid
 __END_OALL
