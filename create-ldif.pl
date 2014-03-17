@@ -1,12 +1,18 @@
 #! /usr/bin/perl
 
 use strict;
+use Email::Send;
+use MIME::Base64 qw(encode_base64);
 
 my $is_reset   = 0;
 
 my $fname_addr = $ARGV[0];
 my $fname_uid  = '00uid.list';
 my $fname_tex  = 'skel.tex';
+my $fname_email = 'skel.email';
+
+my $cmd_latex      = '/usr/bin/pdflatex';
+my $cmd_sendmail   = '/usr/bin/sendmail';
 
 if (defined($ARGV[1])) {$is_reset = 1; }
 
@@ -22,6 +28,7 @@ my $last_uid = &ReadUid($fname_uid, \%uids);
 my @all_new;
 
 open(INDAT, $fname_addr);
+my ($fout_tex, $fout_email);
 foreach (<INDAT>) {
     chomp;
     @tarr = split(/ /, $_);
@@ -39,8 +46,18 @@ foreach (<INDAT>) {
     } else {
         &OutLdifMod($fname_addr, $cur{uname}, $cur{email}, $cur{pass}, $uids{$cur{uname}});
     }
-    &ModTexSkel($fname_tex, $fname_addr, $cur{uname}, $cur{email}, $cur{pass});
+    $fout_tex = "$fname_addr.$cur{uname}.$post_tex";
+    &ModTexSkel($fname_tex, $fout_tex, $cur{uname}, $cur{email}, $cur{pass});
     push(@all_new, $cur{uname});
+    # compile PDF and send email
+    system($cmd_latex . " $fout_tex");
+    # make email
+    $fout_email = &ModEmailSkel($fname_email, $fout_tex, $cur{uname}, $cur{email});
+    my @email_args;
+    push(@email_args, '-i');
+    while ($fout_email =~ s/^[\r\n]//g) {}
+    my $mailer = Email::Send->new({ mailer => 'Sendmail', mailer_args => \@email_args });
+    my $retval = $mailer->send($fout_email);
 }
 close(INDAT);
 &SaveUid($fname_uid, \%uids);
@@ -108,9 +125,9 @@ sub MakePass {
 }
 
 sub ModTexSkel {
-    my ($skel, $supname, $uname, $email, $pass) = @_;
+    my ($skel, $texname, $uname, $email, $pass) = @_;
     open(ISKEL, $skel);
-    open(ODAT, "> $supname.$uname.$post_tex");
+    open(ODAT, "> $texname");
     foreach (<ISKEL>) {
         $_ =~ s/\@\@EMAIL\@\@/$email/;
         $_ =~ s/\@\@USER\@\@/$uname/;
@@ -119,6 +136,30 @@ sub ModTexSkel {
     }
     close(ODAT);
     close(ISKEL);
+}
+
+sub ModEmailSkel {
+    my ($skel, $pdfname, $uname, $email) = @_;
+    open(ISKEL, $skel);
+    my $fout;
+    my $mime_boundary = time();
+    foreach (<ISKEL>) {
+        $_ =~ s/\@\@EMAIL\@\@/$email/;
+        $_ =~ s/\@\@USER\@\@/$uname/;
+        $_ =~ s/\@\@BOUNDARY\@\@/$mime_boundary/;
+        $fout .= $_;
+    }
+    close(ODAT);
+    # attach attachment
+    my $buf;
+    open(INDAT, $pdfname);
+    while(read(INDAT, $buf, 57)) {
+        $fout .= encode_base64($buf) . "\n";
+    }
+    close(INDAT);
+    # close MIME
+    $fout .= "\n--" . $mime_boundary . "--";
+    return $fout;
 }
 
 sub OutLdif {
