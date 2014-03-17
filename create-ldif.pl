@@ -11,6 +11,11 @@ my $fname_uid  = '00uid.list';
 my $fname_tex  = 'skel.tex';
 my $fname_email = 'skel.email';
 
+my @ldefgroup  = ('tech', 'lm');
+
+my $cmd_add = 'ldapadd    -H ldap://localhost -D cn=admin,dc=pfs,dc=ipmu,dc=jp -W -x -f ';
+my $cmd_mod = 'ldapmodify -H ldap://localhost -D cn=admin,dc=pfs,dc=ipmu,dc=jp -W -x -f ';
+
 my $cmd_latex      = '/usr/bin/pdflatex';
 my $cmd_sendmail   = '/usr/bin/sendmail';
 
@@ -62,7 +67,11 @@ foreach (<INDAT>) {
 close(INDAT);
 &SaveUid($fname_uid, \%uids);
 
-if ($is_reset == 0) {&OutLdifMga($fname_addr, "tech", \@all_new); }
+if ($is_reset == 0) {
+    foreach (@ldefgroup) {
+        &OutLdifMga($fname_addr, $_, \@all_new);
+    }
+}
 
 exit;
 
@@ -77,6 +86,9 @@ __END_OALL
   foreach (@$all_new) {print OALL "memberUid: $_\n"; }
   print OALL "\n";
   close(OALL);
+  open(OCMD, ">> $fname_addr.cmd");
+  print OCMD "$cmd_mod $fname_addr.mga.$post_ldif\n";
+  close(OCMD);
 }
 
 sub ReadUid {
@@ -183,6 +195,9 @@ userPassword: $pass
 
 __END_ODAT
     close(ODAT);
+    open(OCMD, ">> $supname.cmd");
+    print OCMD "$cmd_add $supname.$uname.$post_ldif\n";
+    close(OCMD);
 }
 
 sub OutLdifMod {
@@ -197,6 +212,9 @@ userPassword: $pass
 
 __END_ODAT
     close(ODAT);
+    open(OCMD, ">> $supname.cmd");
+    print OCMD "$cmd_mod $supname.$uname.$post_ldif\n";
+    close(OCMD);
 }
 
 
