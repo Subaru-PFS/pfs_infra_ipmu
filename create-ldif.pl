@@ -25,6 +25,7 @@ my $ldif_dc   = 'dc=web,dc=pfs,dc=ipmu,dc=jp';
 
 my $post_ldif = "ldif";
 my $post_tex  = "tex";
+my $post_pdf  = 'pdf';
 
 my @tarr;
 my %cur;
@@ -57,6 +58,7 @@ foreach (<INDAT>) {
     # compile PDF and send email
     system($cmd_latex . " $fout_tex");
     # make email
+    $fout_tex = "$fname_addr.$cur{uname}.$post_pdf";
     $fout_email = &ModEmailSkel($fname_email, $fout_tex, $cur{uname}, $cur{email});
     my @email_args;
     push(@email_args, '-i');
