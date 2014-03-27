@@ -168,7 +168,7 @@ sub ModEmailSkel {
     my $buf;
     open(INDAT, $pdfname);
     while(read(INDAT, $buf, 57)) {
-        $fout .= encode_base64($buf) . "\n";
+        $fout .= encode_base64($buf, '') . "\n";
     }
     close(INDAT);
     # close MIME
