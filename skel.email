@@ -2,7 +2,7 @@ From: pfs@pfs.ipmu.jp
 To: @@EMAIL@@
 Subject: Your acount @ pfs.ipmu.jp
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="@@BOUNDARY@@"
+Content-Type: multipart/mixed; boundary="@@BOUNDARY@@"
 
 --@@BOUNDARY@@
 Content-Type: text/plain; charset=utf-8
@@ -35,10 +35,10 @@ without hesitate.
 
   regards,
 -- 
-PFS (pfs.ipmu.jp) System Administrator
+PFS (pfs.ipmu.jp) System Administrator, pfs@pfs.ipmu.jp
 
 --@@BOUNDARY@@
-Content-Type: application/pdf; name="account.pdf"
-Content-Disposition: attachment; filename="account.pdf"
+Content-Type: application/pdf; name="password-@@USER@@.pdf"
+Content-Disposition: attachment; filename="password-@@USER@@.pdf"
 Content-Transfer-Encoding: base64
 
