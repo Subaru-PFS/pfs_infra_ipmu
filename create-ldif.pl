@@ -26,6 +26,7 @@ my $ldif_dc   = 'dc=web,dc=pfs,dc=ipmu,dc=jp';
 my $post_ldif = "ldif";
 my $post_tex  = "tex";
 my $post_pdf  = 'pdf';
+my @unlink_tex = ('aux', 'log', 'pdf');
 
 my @tarr;
 my %cur;
@@ -65,6 +66,7 @@ foreach (<INDAT>) {
     while ($fout_email =~ s/^[\r\n]//g) {}
     my $mailer = Email::Send->new({ mailer => 'Sendmail', mailer_args => \@email_args });
     my $retval = $mailer->send($fout_email);
+    foreach (@unlink_tex) {unlink("$fname_addr.$cur{uname}.$_"); }
 }
 close(INDAT);
 &SaveUid($fname_uid, \%uids);
