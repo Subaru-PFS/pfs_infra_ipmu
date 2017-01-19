@@ -17,7 +17,7 @@ def print_server(name, target_uri):
     print "Information for '%s':" % (name)
     node_info = lv_conn.getInfo()
     print "  Memory : {:.1f} GB / {:.1f} GB free".format( \
-        node_info[1] / 1024.0, lv_conn.getFreeMemory() / 1073741824.0)
+        node_info[1] / 1000.0, lv_conn.getFreeMemory() / 1000000000.0)
     print ("  VCPUs  : {0[0]:d} in {0[1]:d} MHz ({0[2]:d} NUMA, " + \
         "{0[3]:d} socket, {0[4]:d} core, {0[5]:d} thread)").format( \
         node_info[2:8])
@@ -26,8 +26,8 @@ def print_server(name, target_uri):
     for lv_proc in lv_doms:
         lv_info = lv_proc.info()
         lv_state = _getStringForState(lv_info[0])
-        lv_info[1] /= 1048576.0
-        lv_info[2] /= 1048576.0
+        lv_info[1] /= 1000000.0
+        lv_info[2] /= 1000000.0
         print ("    {0:15s} ({1:2d}): {2:s} Mem {3[2]:.1f}GB " + \
             "({3[1]:.1f}GB max) {3[3]:d}CPU ({4:d} max)") \
             .format(lv_proc.name(), lv_proc.ID(), lv_state, lv_info, \
