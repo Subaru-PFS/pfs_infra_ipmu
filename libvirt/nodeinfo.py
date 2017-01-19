@@ -9,7 +9,7 @@ def print_server(name, target_uri):
     try:
         lv_conn = libvirt.openReadOnly(target_uri)
     except libvirt.libvirtError:
-        print "Target '{}' is not running".format(target_uri)
+        print "Target '{}' ({}) is not running".format(name, target_uri)
         return None
     if lv_conn == None:
         print "Failed to connect '{}'".format(target_uri)
