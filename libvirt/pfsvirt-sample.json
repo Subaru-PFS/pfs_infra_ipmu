@@ -1,0 +1,18 @@
+{
+    "_comment": {
+        "servers": "hash to hostname as key, dict as value",
+        "servers/hostname": [
+            "dict with following pairs",
+            {
+                "addr": "host IP address or reachable DNS name",
+                "mode": "default to 'tls', specify mode to access"
+            }
+        ]
+    },
+    "servers": {
+        "sample": {
+            "addr": "192.168.0.1",
+            "mode": "tls"
+        }
+    }
+}
