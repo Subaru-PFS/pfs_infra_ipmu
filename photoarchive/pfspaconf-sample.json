@@ -1,0 +1,32 @@
+{
+    "_comment": {
+        "config": [
+            "General configuration for storage",
+            {
+                "data": "path to root data directory",
+                "original": "directory for original photo/movie",
+                "thumbnail": "directory for thumbnails"
+            }
+        ],
+        "thumbnail": [
+            "Thumbnail creation and html configuration",
+            {
+                "size": "width/height for thumbnail",
+                "rows": "number of images for html",
+                "video_pos": "position of thumbnail for video, default 0.5",
+                "video_unit": "unit of video_pos, relative (default) or sec"
+            }
+        ]
+    },
+    "config": {
+        "data": "data",
+        "original": "orig",
+        "thumbnail": "thumb"
+    },
+    "thumbnail": {
+        "size": 250,
+        "rows": 5,
+        "video_pos": 0.5,
+        "video_unit": "sec"
+    }
+}
