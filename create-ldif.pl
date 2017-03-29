@@ -69,6 +69,7 @@ foreach (<INDAT>) {
     my $retval = $mailer->send($fout_email);
     foreach (@unlink_tex) {unlink("$fname_addr.$cur{uname}.$_"); }
     # email to admin
+    $mailer = Email::Send->new({ mailer => 'Sendmail', mailer_args => \@email_args });
     $fout_email = &ModEmailAdmin($fname_admin, $cur{uname}, $cur{email});
     $retval = $mailer->send($fout_email);
 }
