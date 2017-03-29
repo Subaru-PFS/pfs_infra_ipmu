@@ -71,6 +71,7 @@ foreach (<INDAT>) {
     # email to admin
     $mailer = Email::Send->new({ mailer => 'Sendmail', mailer_args => \@email_args });
     $fout_email = &ModEmailAdmin($fname_admin, $cur{uname}, $cur{email});
+    while ($fout_email =~ s/^[\r\n]//g) {}
     $retval = $mailer->send($fout_email);
 }
 close(INDAT);
