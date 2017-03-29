@@ -10,6 +10,7 @@ my $fname_addr = $ARGV[0];
 my $fname_uid  = '00uid.list';
 my $fname_tex  = 'skel.tex';
 my $fname_email = 'skel.email';
+my $fname_admin = 'skel.admin.email';
 
 my @ldefgroup  = ('tech', 'lm');
 
@@ -67,6 +68,9 @@ foreach (<INDAT>) {
     my $mailer = Email::Send->new({ mailer => 'Sendmail', mailer_args => \@email_args });
     my $retval = $mailer->send($fout_email);
     foreach (@unlink_tex) {unlink("$fname_addr.$cur{uname}.$_"); }
+    # email to admin
+    $fout_email = &ModEmailAdmin($fname_admin, $cur{uname}, $cur{email});
+    $retval = $mailer->send($fout_email);
 }
 close(INDAT);
 &SaveUid($fname_uid, \%uids);
@@ -165,7 +169,7 @@ sub ModEmailSkel {
         $_ =~ s/\@\@BOUNDARY\@\@/$mime_boundary/;
         $fout .= $_;
     }
-    close(ODAT);
+    close(ISKEL);
     # attach attachment
     my $buf;
     open(INDAT, $pdfname);
@@ -175,6 +179,19 @@ sub ModEmailSkel {
     close(INDAT);
     # close MIME
     $fout .= "\n--" . $mime_boundary . "--";
+    return $fout;
+}
+
+sub ModEmailAdmin {
+    my ($skel, $uname, $email) = @_;
+    open(ISKEL, $skel);
+    my $fout;
+    foreach (<ISKEL>) {
+        $_ =~ s/\@\@EMAIL\@\@/$email/;
+        $_ =~ s/\@\@USER\@\@/$uname/;
+        $fout .= $_;
+    }
+    close(ISKEL);
     return $fout;
 }
 
