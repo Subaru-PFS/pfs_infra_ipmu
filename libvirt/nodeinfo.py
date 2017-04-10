@@ -20,8 +20,11 @@ def print_server(name, target_uri):
         return None
     print "Information for '%s':" % (name)
     node_info = lv_conn.getInfo()
-    print "  Memory : {:.1f} GB / {:.1f} GB free".format( \
-        node_info[1] / DEF_GB_MB, lv_conn.getFreeMemory() / DEF_GB_B)
+    node_mem = lv_conn.getMemoryStats(libvirt.VIR_NODE_MEMORY_STATS_ALL_CELLS)
+    print ("  Memory : {:.1f} GB / {:.1f} GB free, {:.1f} GB cached, " + \
+        "{:.1f} GB buffers").format( \
+        node_mem['total'] / DEF_GB_KB, node_mem['free'] / DEF_GB_KB, 
+        node_mem['cached'] / DEF_GB_KB, node_mem['buffers'] / DEF_GB_KB)
     print ("  VCPUs  : {0[0]:d} in {0[1]:d} MHz ({0[2]:d} NUMA, " + \
         "{0[3]:d} socket, {0[4]:d} core, {0[5]:d} thread)").format( \
         node_info[2:8])
