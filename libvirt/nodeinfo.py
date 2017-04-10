@@ -36,23 +36,28 @@ def print_server(name, target_uri):
             buf = lv_conn.getMemoryStats(numa)
             print "    NUMA {:d}: {:.1f} GB free in {:.1f} GB total".format( \
                 numa, buf['free'] / DEF_GB_KB, buf['total'] / DEF_GB_KB)
-    lv_doms = lv_conn.listAllDomains(libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE)
+    lv_doms = lv_conn.listAllDomains(0)
     print "  domains:"
-    mem_doms = [0, 0]
+    mem_doms = [0, 0] # [max, cur]
     for lv_proc in lv_doms:
         lv_info = lv_proc.info()
         lv_state = _getStringForState(lv_info[0])
-        lv_info[1] /= DEF_GB_KB
-        lv_info[2] /= DEF_GB_KB
+        lv_info[1] /= DEF_GB_KB # max
+        lv_info[2] /= DEF_GB_KB # cur
         mem_doms[0] += lv_info[1]
         mem_doms[1] += lv_info[2]
-        print ("    {0:15s} ({1:2d}): {2:s} Mem {3[2]:.1f}GB " + \
-            "({3[1]:.1f}GB max) {3[3]:d}CPU ({4:d} max)") \
-            .format(lv_proc.name(), lv_proc.ID(), lv_state, lv_info, \
-            lv_proc.maxVcpus())
-    mem_free = node_info[1] / DEF_GB_MB - mem_doms[1]
+        if lv_info[0] == libvirt.VIR_DOMAIN_RUNNING:
+            print ("    {0:15s} ({1:2d}): {2:s} Mem {3[2]:.1f}GB " + \
+                "({3[1]:.1f}GB max) {3[3]:d}CPU ({4:d} max)") \
+                .format(lv_proc.name(), lv_proc.ID(), lv_state, lv_info, \
+                lv_proc.maxVcpus())
+        else:
+            print ("    {0:15s} (--): {1:s} Mem {2[2]:.1f}GB " + \
+                "({2[1]:.1f}GB max) -CPU ({2[3]:d} max)") \
+                .format(lv_proc.name(), lv_state, lv_info)
+    mem_free = node_info[1] / DEF_GB_MB - mem_doms[0]
     print ("  Memory usage: {:.1f}GB ({:.1f}GB max) {:.1f}GB allocatable"
-        ).format(mem_doms[0], mem_doms[1], mem_free)
+        ).format(mem_doms[1], mem_doms[0], mem_free)
     lv_conn.close()
 
 def _getStringForState(state):
