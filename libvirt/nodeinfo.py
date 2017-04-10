@@ -25,6 +25,7 @@ def print_server(name, target_uri):
     print ("  VCPUs  : {0[0]:d} in {0[1]:d} MHz ({0[2]:d} NUMA, " + \
         "{0[3]:d} socket, {0[4]:d} core, {0[5]:d} thread)").format( \
         node_info[2:8])
+    print "  CPU    : Model \"{}\"".format(node_info[0])
     lv_doms = lv_conn.listAllDomains(libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE)
     print "  domains:"
     mem_doms = [0, 0]
