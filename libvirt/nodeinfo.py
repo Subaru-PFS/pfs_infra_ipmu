@@ -28,6 +28,7 @@ def print_server(name, target_uri):
     print ("  VCPUs  : {0[0]:d} in {0[1]:d} MHz ({0[2]:d} NUMA, " + \
         "{0[3]:d} socket, {0[4]:d} core, {0[5]:d} thread)").format( \
         node_info[2:8])
+    # getCPUStats(cpu_id) seems to return in cumulative nsec
     print "  CPU    : Model \"{}\"".format(node_info[0])
     if node_info[4] > 1:
         print "  Memory per NUMA"
