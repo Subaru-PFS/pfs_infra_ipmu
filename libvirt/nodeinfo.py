@@ -29,8 +29,8 @@ def print_server(name, target_uri):
         lv_state = _getStringForState(lv_info[0])
         lv_info[1] /= 1048576.0
         lv_info[2] /= 1048576.0
-        mem_doms[0] = lv_info[1]
-        mem_doms[1] = lv_info[2]
+        mem_doms[0] += lv_info[1]
+        mem_doms[1] += lv_info[2]
         print ("    {0:15s} ({1:2d}): {2:s} Mem {3[2]:.1f}GB " + \
             "({3[1]:.1f}GB max) {3[3]:d}CPU ({4:d} max)") \
             .format(lv_proc.name(), lv_proc.ID(), lv_state, lv_info, \
