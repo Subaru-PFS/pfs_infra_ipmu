@@ -21,6 +21,7 @@ Assumed to be used on bulding new instance on virt.
 
 * [Stretch](/debian-preseed/stretch.preseed.cfg)
 
-## Chef configuration (chef)
-Software configuration codes on Chef.
+## LDAP account administrative script (ldap-admin)
+
+See project internal wiki page for details.
 
