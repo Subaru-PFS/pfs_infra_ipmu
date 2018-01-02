@@ -1,0 +1,44 @@
+From: pfs@pfs.ipmu.jp
+To: @@EMAIL@@
+Subject: Your acount @ pfs.ipmu.jp
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="@@BOUNDARY@@"
+
+--@@BOUNDARY@@
+Content-Type: text/plain; charset=utf-8
+
+  Dear @@USER@@,
+
+
+  Your account information including your initial password is in an attached PDF.
+
+  After you receive this e-mail, please change your password and information (your 
+name, institution, photo) from
+https://pfs.ipmu.jp/ldap-manip/
+# remark: After clicking 'change password', you will ask new password (from your browser).
+
+  Also, you can get full list of avail services at pfs.ipmu.jp from its top page.
+https://pfs.ipmu.jp/
+
+
+FAQ
+
+* I got a warning when changing password.
+ - Please read carefully about the password restriction at the latter half of the attached PDF.
+ - If nothing changed, please ask me with error message.
+
+
+
+  If you have some questions on pfs.ipmu.jp, please ask me (or the Project Office) 
+without hesitate.
+
+
+  regards,
+-- 
+PFS (pfs.ipmu.jp) System Administrator, pfs@pfs.ipmu.jp
+
+--@@BOUNDARY@@
+Content-Type: application/pdf; name="password-@@USER@@.pdf"
+Content-Disposition: attachment; filename="password-@@USER@@.pdf"
+Content-Transfer-Encoding: base64
+
