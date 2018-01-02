@@ -25,3 +25,7 @@ Assumed to be used on bulding new instance on virt.
 
 See project internal wiki page for details.
 
+## Administrative scripts (admin-script)
+
+See project internal wiki page for details.
+
