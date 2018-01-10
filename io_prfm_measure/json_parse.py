@@ -77,7 +77,7 @@ def PrintHeader(fout):
 def main():
     PrintHeader(sys.stdout)
     for item in range(1, len(sys.argv)):
-        ExecOneJson(sys.argv[1], sys.stdout)
+        ExecOneJson(sys.argv[item], sys.stdout)
 
 if __name__ == '__main__':
   main()
