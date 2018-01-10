@@ -73,6 +73,7 @@ def PrintHeader(fout):
       'majf', 'minf', 'clat_min', 'clat_max', 'clat_mean', 'clat_stddev', \
       'lat_min', 'lat_max', 'lat_mean', 'lat_stddev']:
         fout.write('{}\t'.format(item))
+    fout.write('\n')
 
 def main():
     PrintHeader(sys.stdout)
