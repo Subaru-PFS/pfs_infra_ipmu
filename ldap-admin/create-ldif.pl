@@ -25,7 +25,10 @@ options:
   --group=<str> : enable LDAP group specified by <str>, multiple accepted
   --jira : enable JIRA access
   --shell : define user as shell access group (cannot be used with --reset)
-target_list is a filename with lines by "<email> <username>"
+target_list is a filename with lines by "<email> <username> <fullname>"
+  uid is taken from '00uid.list' file (last +1)
+  default gid is from opt_gid (2000)
+  fullname is an option, but to the end when defined
 __EOF
   exit;
 }
@@ -39,6 +42,7 @@ my $fname_admin = 'skel.admin.email';
 # control options
 my $opt_ldaphost = 'localhost';
 my $opt_ldapadm = 'cn=admin,dc=pfs,dc=ipmu,dc=jp';
+my $opt_gid = '2000';
 
 my @ldefgroup  = ('tech', 'lm');
 my @ldefgroup_jira = ('jira-users', 'jira-developers');
@@ -77,13 +81,15 @@ foreach (<INDAT>) {
     $cur{email} = $tarr[0];
     if ($#tarr > 0) {$cur{uname} = $tarr[1]; }
     else {$cur{uname} = substr($tarr[0], 0, index($tarr[0], '@')); }
+    if ($#tarr > 1) {$cur{fullname} = join(' ', @tarr[2..$#tarr]); }
+    else {$cur{fullname} = $cur{uname}; }
     $cur{pass} = &MakePass();
     if (! defined($uids{$cur{uname}})) {
         $last_uid += 1;
         $uids{$cur{uname}} = $last_uid;
     }
     if ($is_reset == 0) {
-        &OutLdif($fname_addr, $cur{uname}, $cur{email}, $cur{pass}, $uids{$cur{uname}});
+        &OutLdif($fname_addr, $cur{uname}, $cur{email}, $cur{pass}, $uids{$cur{uname}}, $cur{fullname});
     } else {
         &OutLdifMod($fname_addr, $cur{uname}, $cur{email}, $cur{pass}, $uids{$cur{uname}});
     }
@@ -234,8 +240,9 @@ sub ModEmailAdmin {
 }
 
 sub OutLdif {
-    my ($supname, $uname, $addr, $pass, $uid) = @_;
+    my ($supname, $uname, $addr, $pass, $uid, $fullname) = @_;
     if (! defined($uid)) {$uid = 65542; }
+    if (! defined($fullname)) {$fullname = $uname; }
     open(ODAT, "> $supname.$uname.$post_ldif");
     print ODAT <<__END_ODAT;
 dn: cn=$uname,ou=Users,$ldif_dc
@@ -244,9 +251,9 @@ objectClass: inetOrgPerson
 objectClass: posixAccount
 uid: $uname
 cn: $uname
-sn: $uname
+sn: $fullname
 uidNumber: $uid
-gidNumber: 2000
+gidNumber: $opt_gid
 homeDirectory: /home/$uname
 mail: $addr
 loginShell: /bin/tcsh
