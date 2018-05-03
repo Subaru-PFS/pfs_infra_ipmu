@@ -15,6 +15,7 @@ GetOptions(
   'shell' => \$c_shell,
 );
 my $fname_addr = shift(@ARGV);
+if (defined(shift(@ARGV))) {$c_reset = 1; }
 
 if ((! defined($fname_addr)) || (! -f $fname_addr)) {
   print <<__EOF;
