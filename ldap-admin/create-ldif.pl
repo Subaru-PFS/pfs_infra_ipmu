@@ -1,28 +1,60 @@
 #! /usr/bin/perl
 
 use strict;
+use Getopt::Long qw(:config posix_default no_ignore_case gnu_compat);
 use Email::Send;
 use MIME::Base64 qw(encode_base64);
 
 my $is_reset   = 0;
 
-my $fname_addr = $ARGV[0];
+my ($c_reset, @c_group, $c_jira, $c_shell);
+GetOptions(
+  'reset' => \$c_reset,
+  'group=s' => \@c_group,
+  'jira' => \$c_jira,
+  'shell' => \$c_shell,
+);
+my $fname_addr = shift(@ARGV);
+
+if ((! defined($fname_addr)) || (! -f $fname_addr)) {
+  print <<__EOF;
+<script> <options> target_list
+options:
+  --reset : execute reset (password)
+  --group=<str> : enable LDAP group specified by <str>, multiple accepted
+  --jira : enable JIRA access
+  --shell : define user as shell access group (cannot be used with --reset)
+target_list is a filename with lines by "<email> <username>"
+__EOF
+  exit;
+}
+
+# script defs
 my $fname_uid  = '00uid.list';
 my $fname_tex  = 'skel.tex';
 my $fname_email = 'skel.email';
 my $fname_admin = 'skel.admin.email';
 
-my @ldefgroup  = ('tech', 'lm');
+# control options
+my $opt_ldaphost = 'localhost';
+my $opt_ldapadm = 'cn=admin,dc=pfs,dc=ipmu,dc=jp';
 
-my $cmd_add = 'ldapadd    -H ldap://localhost -D cn=admin,dc=pfs,dc=ipmu,dc=jp -W -x -f ';
-my $cmd_mod = 'ldapmodify -H ldap://localhost -D cn=admin,dc=pfs,dc=ipmu,dc=jp -W -x -f ';
+my @ldefgroup  = ('tech', 'lm');
+my @ldefgroup_jira = ('jira-users', 'jira-developers');
+if ($#c_group > -1) {push(@ldefgroup, @c_group); }
+if (defined($c_jira)) {push(@ldefgroup, @ldefgroup_jira); }
+
+my $cmd_add = "ldapadd    -H ldap://${opt_ldaphost} -D ${opt_ldapadm} -W -x -f ";
+my $cmd_mod = "ldapmodify -H ldap://${opt_ldaphost} -D ${opt_ldapadm} -W -x -f ";
+my $cmd_mod_done = 0;
 
 my $cmd_latex      = '/usr/bin/pdflatex';
 my $cmd_sendmail   = '/usr/bin/sendmail';
 
-if (defined($ARGV[1])) {$is_reset = 1; }
+if (defined($c_reset)) {$is_reset = 1; }
 
 my $ldif_dc   = 'dc=web,dc=pfs,dc=ipmu,dc=jp';
+if (defined($c_shell)) {$ldif_dc = 'dc=shell,dc=pfs,dc=ipmu,dc=jp'; }
 
 my $post_ldif = "ldif";
 my $post_tex  = "tex";
@@ -96,9 +128,12 @@ __END_OALL
   foreach (@$all_new) {print OALL "memberUid: $_\n"; }
   print OALL "\n";
   close(OALL);
-  open(OCMD, ">> $fname_addr.cmd");
-  print OCMD "$cmd_mod $fname_addr.mga.$post_ldif\n";
-  close(OCMD);
+  if ($cmd_mod_done == 0) {
+    open(OCMD, ">> $fname_addr.cmd");
+    print OCMD "$cmd_mod $fname_addr.mga.$post_ldif\n";
+    close(OCMD);
+    $cmd_mod_done = 1;
+  }
 }
 
 sub ReadUid {
@@ -235,9 +270,12 @@ userPassword: $pass
 
 __END_ODAT
     close(ODAT);
-    open(OCMD, ">> $supname.cmd");
-    print OCMD "$cmd_mod $supname.$uname.$post_ldif\n";
-    close(OCMD);
+    if ($cmd_mod_done == 0) {
+      open(OCMD, ">> $supname.cmd");
+      print OCMD "$cmd_mod $supname.$uname.$post_ldif\n";
+      close(OCMD);
+      $cmd_mod_done = 1;
+    }
 }
 
 
