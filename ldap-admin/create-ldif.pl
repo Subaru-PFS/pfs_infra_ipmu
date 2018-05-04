@@ -28,7 +28,7 @@ options:
 target_list is a filename with lines by "<email> <username> <fullname>"
   uid is taken from '00uid.list' file (last +1)
   default gid is from opt_gid (2000)
-  fullname is an option, but to the end when defined
+  fullname is an option, from third to the end when defined
 __EOF
   exit;
 }
@@ -91,7 +91,7 @@ foreach (<INDAT>) {
     if ($is_reset == 0) {
         &OutLdif($fname_addr, $cur{uname}, $cur{email}, $cur{pass}, $uids{$cur{uname}}, $cur{fullname});
     } else {
-        &OutLdifMod($fname_addr, $cur{uname}, $cur{email}, $cur{pass}, $uids{$cur{uname}});
+        &OutLdifMod($fname_addr, $cur{uname}, $cur{email}, $cur{pass}, $uids{$cur{uname}}, $cur{fullname});
     }
     $fout_tex = "$fname_addr.$cur{uname}.$post_tex";
     &ModTexSkel($fname_tex, $fout_tex, $cur{uname}, $cur{email}, $cur{pass});
@@ -267,7 +267,7 @@ __END_ODAT
 }
 
 sub OutLdifMod {
-    my ($supname, $uname, $addr, $pass, $uid) = @_;
+    my ($supname, $uname, $addr, $pass, $uid, $fullname) = @_;
     if (! defined($uid)) {$uid = 65542; }
     open(ODAT, "> $supname.$uname.$post_ldif");
     print ODAT <<__END_ODAT;
@@ -275,8 +275,13 @@ dn: cn=$uname,ou=Users,$ldif_dc
 changetype: modify
 replace: userPassword
 userPassword: $pass
-
 __END_ODAT
+    if ($uname ne $fullname) {
+      print ODAT "-\n";
+      print ODAT "replace: sn\n";
+      print ODAT "sn: $fullname\n";
+    }
+    print ODAT "\n";
     close(ODAT);
     if ($cmd_mod_done == 0) {
       open(OCMD, ">> $supname.cmd");
