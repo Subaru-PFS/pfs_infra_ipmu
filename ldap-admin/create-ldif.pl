@@ -57,8 +57,10 @@ my $cmd_sendmail   = '/usr/bin/sendmail';
 
 if (defined($c_reset)) {$is_reset = 1; }
 
-my $ldif_dc   = 'dc=web,dc=pfs,dc=ipmu,dc=jp';
-if (defined($c_shell)) {$ldif_dc = 'dc=shell,dc=pfs,dc=ipmu,dc=jp'; }
+my $ldif_dc_web = 'dc=web,dc=pfs,dc=ipmu,dc=jp';
+my $ldif_dc_shell = 'dc=shell,dc=pfs,dc=ipmu,dc=jp';
+
+my $ldif_dc = defined($c_shell) ? $ldif_dc_shell : $ldif_dc_web;
 
 my $post_ldif = "ldif";
 my $post_tex  = "tex";
@@ -132,7 +134,7 @@ sub OutLdifMga {
   my ($fname_addr, $add_group, $all_new) = @_;
   open(OALL, ">> $fname_addr.mga.$post_ldif");
   print OALL <<__END_OALL;
-dn: cn=$add_group,ou=Groups,$ldif_dc
+dn: cn=$add_group,ou=Groups,$ldif_dc_web
 changetype: modify
 add: memberUid
 __END_OALL
@@ -151,11 +153,11 @@ sub OutLdifGon {
   my ($fname_addr, $add_group, $all_new) = @_;
   open(OALL, ">> $fname_addr.mga.$post_ldif");
   print OALL <<__END_OALL;
-dn: cn=$add_group,ou=Groups,$ldif_dc
+dn: cn=$add_group,ou=Groups,$ldif_dc_web
 changetype: modify
 add: member
 __END_OALL
-  foreach (@$all_new) {print OALL "member: $_\n"; }
+  foreach (@$all_new) {print OALL "member: cn=$_,ou=Users,$ldif_dc\n"; }
   print OALL "\n";
   close(OALL);
   if ($cmd_mod_done == 0) {
