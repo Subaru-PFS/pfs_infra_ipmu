@@ -45,9 +45,8 @@ my $opt_ldapadm = 'cn=admin,dc=pfs,dc=ipmu,dc=jp';
 my $opt_gid = '2000';
 
 my @ldefgroup  = ('tech', 'lm');
-my @ldefgroup_jira = ('jira-users', 'jira-developers');
+my @ldefgroup_jira = ('jira-ldap-users');
 if ($#c_group > -1) {push(@ldefgroup, @c_group); }
-if (defined($c_jira)) {push(@ldefgroup, @ldefgroup_jira); }
 
 my $cmd_add = "ldapadd    -H ldap://${opt_ldaphost} -D ${opt_ldapadm} -W -x -f ";
 my $cmd_mod = "ldapmodify -H ldap://${opt_ldaphost} -D ${opt_ldapadm} -W -x -f ";
@@ -120,6 +119,11 @@ if ($is_reset == 0) {
     foreach (@ldefgroup) {
         &OutLdifMga($fname_addr, $_, \@all_new);
     }
+    if (defined($c_jira)) {
+        foreach (@ldefgroup_jira) {
+            &OutLdifGon($fname_addr, $_, \@all_new);
+        }
+    }
 }
 
 exit;
@@ -133,6 +137,25 @@ changetype: modify
 add: memberUid
 __END_OALL
   foreach (@$all_new) {print OALL "memberUid: $_\n"; }
+  print OALL "\n";
+  close(OALL);
+  if ($cmd_mod_done == 0) {
+    open(OCMD, ">> $fname_addr.cmd");
+    print OCMD "$cmd_mod $fname_addr.mga.$post_ldif\n";
+    close(OCMD);
+    $cmd_mod_done = 1;
+  }
+}
+
+sub OutLdifGon {
+  my ($fname_addr, $add_group, $all_new) = @_;
+  open(OALL, ">> $fname_addr.mga.$post_ldif");
+  print OALL <<__END_OALL;
+dn: cn=$add_group,ou=Groups,$ldif_dc
+changetype: modify
+add: member
+__END_OALL
+  foreach (@$all_new) {print OALL "member: $_\n"; }
   print OALL "\n";
   close(OALL);
   if ($cmd_mod_done == 0) {
