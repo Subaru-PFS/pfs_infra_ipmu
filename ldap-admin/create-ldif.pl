@@ -48,8 +48,9 @@ my $opt_ldapadm = 'cn=admin,dc=pfs,dc=ipmu,dc=jp';
 my $opt_gid = '2000';
 my $opt_invalid = '{SSHA}XXXX';
 
-my @ldefgroup  = ('tech', 'lm');
-my @ldefgroup_jira = ('jira-ldap-users');
+my @ldefgroup  = ('tech', 'lm'); # default group to be added
+my @ldefgroup_jira = ('jira-ldap-users'); # default groupOfMember group (external)
+my @ldifgroup_disabled = ('disabled'); # group for disabled accounts
 if ($#c_group > -1) {push(@ldefgroup, @c_group); }
 
 my $cmd_add = "ldapadd    -H ldap://${opt_ldaphost} -D ${opt_ldapadm} -W -x -f ";
@@ -108,6 +109,13 @@ __END_ODAT
     }
     print ODAT "\n";
   }
+  print ODAT "dn: cn=$ldifgroup_disabled,ou=Groups,$ldif_dc_web\n";
+  print ODAT "changetype: modify\n";
+  print ODAT "add: memberUid\n";
+  foreach (@list_uid) {
+    print ODAT "memberUid: $_\n";
+  }
+  print ODAT "\n";
   close(ODAT);
   open(OCMD, ">> $fname_addr.cmd");
   print OCMD "$cmd_mod $fname_addr.disable.$post_ldif\n";
