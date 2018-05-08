@@ -6,10 +6,12 @@ use Email::Send;
 use MIME::Base64 qw(encode_base64);
 
 my $is_reset   = 0;
+my $is_disable = 0;
 
-my ($c_reset, @c_group, $c_jira, $c_shell);
+my ($c_reset, $c_disable, @c_group, $c_jira, $c_shell);
 GetOptions(
   'reset' => \$c_reset,
+  'disable' => \$c_disable,
   'group=s' => \@c_group,
   'jira' => \$c_jira,
   'shell' => \$c_shell,
@@ -22,6 +24,7 @@ if ((! defined($fname_addr)) || (! -f $fname_addr)) {
 <script> <options> target_list
 options:
   --reset : execute reset (password)
+  --disable : remove from default groups and set password to invalid
   --group=<str> : enable LDAP group specified by <str>, multiple accepted
   --jira : enable JIRA access
   --shell : define user as shell access group (cannot be used with --reset)
@@ -43,6 +46,7 @@ my $fname_admin = 'skel.admin.email';
 my $opt_ldaphost = 'localhost';
 my $opt_ldapadm = 'cn=admin,dc=pfs,dc=ipmu,dc=jp';
 my $opt_gid = '2000';
+my $opt_invalid = '{SSHA}XXXX';
 
 my @ldefgroup  = ('tech', 'lm');
 my @ldefgroup_jira = ('jira-ldap-users');
@@ -56,6 +60,7 @@ my $cmd_latex      = '/usr/bin/pdflatex';
 my $cmd_sendmail   = '/usr/bin/sendmail';
 
 if (defined($c_reset)) {$is_reset = 1; }
+elsif (defined($c_disable)) {$is_diable = 1; }
 
 my $ldif_dc_web = 'dc=web,dc=pfs,dc=ipmu,dc=jp';
 my $ldif_dc_shell = 'dc=shell,dc=pfs,dc=ipmu,dc=jp';
@@ -72,6 +77,43 @@ my %cur;
 my %uids;
 my $last_uid = &ReadUid($fname_uid, \%uids);
 my @all_new;
+
+# for --disable, not need to process email/tex, just output ldif and cmd
+if ($is_disable) {
+  open(INDAT, $fname_addr);
+  my ($fout_tex, $fout_email, @list_uid);
+  open(ODAT, ">> $fname_addr.disable.$post_ldif");
+  foreach (<INDAT>) {
+    chomp;
+    @tarr = split(/ /, $_);
+    if ($#tarr == -1) {next; }
+    $cur{email} = $tarr[0];
+    if ($#tarr > 0) {$cur{uname} = $tarr[1]; }
+    else {$cur{uname} = substr($tarr[0], 0, index($tarr[0], '@')); }
+    print ODAT <<__END_ODAT;
+dn: cn=$cur{uname},ou=Users,$ldif_dc
+changetype: modify
+replace: userPassword
+userPassword: $opt_invalid
+
+__END_ODAT
+    push(@list_uid, $cur{uname});
+  }
+  foreach(@ldefgroup) {
+    print ODAT "dn: cn=$_,ou=Groups,$ldif_dc_web\n";
+    print ODAT "changetype: modify\n";
+    print ODAT "delete: memberUid\n";
+    foreach (@list_uid) {
+      print ODAT "memberUid: $_\n";
+    }
+    print ODAT "\n";
+  }
+  close(ODAT);
+  open(OCMD, ">> $fname_addr.cmd");
+  print OCMD "$cmd_mod $fname_addr.disable.$post_ldif\n";
+  close(OCMD);
+  exit;
+}
 
 open(INDAT, $fname_addr);
 my ($fout_tex, $fout_email);
@@ -315,5 +357,4 @@ __END_ODAT
       $cmd_mod_done = 1;
     }
 }
-
 
