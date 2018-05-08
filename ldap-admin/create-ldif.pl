@@ -109,13 +109,15 @@ __END_ODAT
     }
     print ODAT "\n";
   }
-  print ODAT "dn: cn=$ldifgroup_disabled,ou=Groups,$ldif_dc_web\n";
-  print ODAT "changetype: modify\n";
-  print ODAT "add: memberUid\n";
-  foreach (@list_uid) {
-    print ODAT "memberUid: $_\n";
+  foreach (@ldifgroup_disabled) {
+    print ODAT "dn: cn=$_,ou=Groups,$ldif_dc_web\n";
+    print ODAT "changetype: modify\n";
+    print ODAT "add: memberUid\n";
+    foreach (@list_uid) {
+      print ODAT "memberUid: $_\n";
+    }
+    print ODAT "\n";
   }
-  print ODAT "\n";
   close(ODAT);
   open(OCMD, ">> $fname_addr.cmd");
   print OCMD "$cmd_mod $fname_addr.disable.$post_ldif\n";
