@@ -43,7 +43,7 @@ my $fname_email = 'skel.email';
 my $fname_admin = 'skel.admin.email';
 
 # control options
-my $opt_ldaphost = 'localhost';
+my $opt_ldaphost = 'ldap.pfs.ipmu.jp';
 my $opt_ldapadm = 'cn=admin,dc=pfs,dc=ipmu,dc=jp';
 my $opt_gid = '2000';
 my $opt_invalid = '{SSHA}XXXX';
