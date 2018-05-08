@@ -60,7 +60,7 @@ my $cmd_latex      = '/usr/bin/pdflatex';
 my $cmd_sendmail   = '/usr/bin/sendmail';
 
 if (defined($c_reset)) {$is_reset = 1; }
-elsif (defined($c_disable)) {$is_diable = 1; }
+elsif (defined($c_disable)) {$is_disable = 1; }
 
 my $ldif_dc_web = 'dc=web,dc=pfs,dc=ipmu,dc=jp';
 my $ldif_dc_shell = 'dc=shell,dc=pfs,dc=ipmu,dc=jp';
