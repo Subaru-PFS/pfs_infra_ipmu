@@ -4,6 +4,7 @@ use strict;
 use Getopt::Long qw(:config posix_default no_ignore_case gnu_compat);
 use Email::Send;
 use MIME::Base64 qw(encode_base64);
+use Cwd;
 
 my $is_reset   = 0;
 my $is_disable = 0;
@@ -32,6 +33,9 @@ target_list is a filename with lines by "<email> <username> <fullname>"
   uid is taken from '00uid.list' file (last +1)
   default gid is from opt_gid (2000)
   fullname is an option, from third to the end when defined
+
+For new account creation, JPEG image file as <username>.jpg will be loaded as 
+jpegPhoto attribute. 
 __EOF
   exit;
 }
@@ -320,6 +324,10 @@ sub OutLdif {
     my ($supname, $uname, $addr, $pass, $uid, $fullname) = @_;
     if (! defined($uid)) {$uid = 65542; }
     if (! defined($fullname)) {$fullname = $uname; }
+    my $jpegline = "";
+    if (-f "${uname}.jpg") {
+        $jpegline = "jpegPhoto:< file://" . getcwd() . "/${uname}.jpg";
+    }
     open(ODAT, "> $supname.$uname.$post_ldif");
     print ODAT <<__END_ODAT;
 dn: cn=$uname,ou=Users,$ldif_dc
@@ -335,6 +343,7 @@ homeDirectory: /home/$uname
 mail: $addr
 loginShell: /bin/tcsh
 userPassword: $pass
+$jpegline
 
 __END_ODAT
     close(ODAT);
