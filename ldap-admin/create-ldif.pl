@@ -360,11 +360,8 @@ __END_ODAT
     }
     print ODAT "\n";
     close(ODAT);
-    if ($cmd_mod_done == 0) {
-      open(OCMD, ">> $supname.cmd");
-      print OCMD "$cmd_mod $supname.$uname.$post_ldif\n";
-      close(OCMD);
-      $cmd_mod_done = 1;
-    }
+    open(OCMD, ">> $supname.cmd");
+    print OCMD "$cmd_mod $supname.$uname.$post_ldif\n";
+    close(OCMD);
 }
 
