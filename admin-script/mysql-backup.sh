@@ -1,11 +1,12 @@
 #!/bin/sh
 
 MYSQL_CONNOPT="--defaults-file=/etc/mysql/debian.cnf"
+BACKUP_ROOT='/server/backup/mysql/'
 
 backup_single() {
 
     DB=$1
-    BACKUP_DIR=/server/backup/mysql/$DB
+    BACKUP_DIR=$BACKUP_ROOT$DB
 
     BACKUP_FILE=$DB\_`date "+%Y-%m-%d"`.sql
     TEMP_FILE=tmp.bak

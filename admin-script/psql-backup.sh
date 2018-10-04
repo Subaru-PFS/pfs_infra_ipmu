@@ -1,9 +1,11 @@
 #!/bin/sh
 
+BACKUP_ROOT='/server/backup/pgsql/'
+
 backup_single() {
 
     DB=$1
-    BACKUP_DIR=/server/backup/pgsql/$DB
+    BACKUP_DIR=$BACKUP_ROOT$DB
 
     BACKUP_FILE=$DB\_`date "+%Y-%m-%d"`.custom
     TEMP_FILE=tmp.bak
