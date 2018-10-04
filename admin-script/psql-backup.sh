@@ -1,6 +1,7 @@
 #!/bin/sh
 
-#USER=$1
+backup_single() {
+
 DB=$1
 BACKUP_DIR=/server/backup/pgsql/$DB
 
@@ -9,8 +10,7 @@ TEMP_FILE=tmp.bak
 
 # check args
 if [ -z $1 ] ; then
-    echo "Usage: psql-backup.sh DBNAME"
-    exit 0
+    return 0
 fi
 
 # check directory
@@ -44,4 +44,14 @@ else
     echo "stable"
     rm $BACKUP_DIR/$TEMP_FILE
 fi
+
+}
+
+LIST=`psql -l -t | awk -F '|' '{print $1}' | egrep -iv 'template|postgres'`
+
+for i in $LIST
+do
+   echo [[ DB: $i ]]
+   backup_single $i
+done
 
