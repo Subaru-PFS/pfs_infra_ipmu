@@ -11,9 +11,8 @@ backup_single() {
     TEMP_FILE=tmp.bak
 
     # check args
-    if [ -z $1 ] || [ -z $2 ]; then
-        echo "Usage: backup-mysql.sh USERNAME DBNAME"
-        exit 0
+    if [ -z $1 ] ; then
+        return 1
     fi
 
     # check directory
