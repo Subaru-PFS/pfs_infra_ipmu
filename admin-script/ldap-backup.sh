@@ -1,7 +1,13 @@
 #!/bin/sh
 
+SYSTEMD='/bin/systemctl'
+SLAPD='slapd.service'
+
+init_slapd() {
+    $SYSTEMD $1 $SLAPD
+}
+
 PRG=/usr/sbin/slapcat
-INIT='/usr/sbin/invoke-rc.d slapd'
 LDIF=pfs
 DB_DIR=/var/lib/ldap
 BACK_DIR=/server/backup/ldap
@@ -12,7 +18,7 @@ LAST_FILE=`ls -1tr | tail -1`
 TEMP_FILE=tmp.ldif
 
 # stop ldap server
-$INIT stop
+init_slapd stop
 
 # Backup from ldap server
 $PRG -l $BACK_DIR/$TEMP_FILE
@@ -32,5 +38,5 @@ else
 fi
 
 # start ldap server
-$INIT start
+init_slapd start
 
