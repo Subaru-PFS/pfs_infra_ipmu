@@ -1,8 +1,10 @@
 #!/bin/sh
 
-USER=$1
-DB=$2
-#BACKUP_DIR=/root/mysql-backup/$DB
+MYSQL_CONNOPT="--defaults-file=/etc/mysql/debian.cnf"
+
+backup_single() {
+
+DB=$1
 BACKUP_DIR=/server/backup/mysql/$DB
 
 BACKUP_FILE=$DB\_`date "+%Y-%m-%d"`.sql
@@ -21,7 +23,7 @@ fi
 LAST_FILE=`ls -1tr $BACKUP_DIR | grep -e $DB -e .sql | tail -1`
 
 # backup from database
-mysqldump -u $USER -r $BACKUP_DIR/$TEMP_FILE --opt $DB
+mysqldump $MYSQL_CONNOPT -r $BACKUP_DIR/$TEMP_FILE --opt $DB
 
 # check database update
 if [ -z $LAST_FILE ]; then
@@ -39,4 +41,14 @@ else
     echo "stable"
     rm $BACKUP_DIR/$TEMP_FILE
 fi
+}
+
+LIST=`mysqlshow $MYSQL_CONNOPT | cut -d' ' -f 2 | egrep -iv 'information_schema|performance_schema|mysql|test|-'`
+
+for i in $LIST
+do
+   echo [[ DB: $i ]]
+   backup_single $i
+done
+
 
