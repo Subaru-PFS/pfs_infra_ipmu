@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# coding: utf-8
+
 import datetime
 import glob
 import html
@@ -89,7 +91,7 @@ class Msg:
                 elif el.get('type') == 'rich_text_list':
                     pass
                 else:
-                    if el.get('type') not in [None, 'rich_text_section']:
+                    if el.get('type') not in [None, 'rich_text_section', 'rich_text_quote']:
                         print(el['type'])
                         import pdb; pdb.set_trace() 
 
@@ -197,7 +199,8 @@ def format_msg(msg, indent=""):
                        ('–', '-'),
                        ('‘', "'"),
                        ('↑', '&uarr;'),
-                       
+                       ('\u2502', '|'), # Box drawings light vertical
+
         ]:
             outputStr = outputStr.replace(ci, co)
 
@@ -208,7 +211,7 @@ def format_msg(msg, indent=""):
                 if False:
                     print(f"In {msg.fileName} Japanese character: {outputStr[e.start:e.end]}", file=sys.stderr)
             else:
-                #print(f"In {msg.fileName} non-ascii character: {outputStr[e.start:e.end]}", file=sys.stderr)
+                print(f"In {msg.fileName} non-ascii character: {outputStr[e.start:e.end]})", file=sys.stderr)
                 print(f"non-ascii character: {outputStr[e.start:e.end]}", file=sys.stderr)
                 #import pdb; pdb.set_trace()
                 pass
@@ -310,6 +313,7 @@ def formatSlackArchive(rootDir, channelList=None, outputDir=None, projectName="P
             print(f"""
     <HTML>
     <HEAD>
+      <meta charset="utf-8"/>
       <TITLE>{title}</TITLE>
     </HEAD>
 
