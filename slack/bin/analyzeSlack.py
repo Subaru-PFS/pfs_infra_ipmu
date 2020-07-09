@@ -116,8 +116,12 @@ class Msg:
                     elif el2['type'] == 'user':   # e.g. {'type': 'user', 'user_id': 'UA82J1WP3'}
                         user = users.get(el2['user_id'], el2['user_id'])
                         user = f"@{user}"
-
                         output.append(user)
+                    elif el2['type'] == 'broadcast':   # e.g. {'type': 'broadcast', 'range': 'channel'}
+                        brange = f"@{el2['range']}"
+                        output.append(brange)
+                        pass
+
                     else:
                         raise RuntimeError(f"Complain to RHL: {el2}")
 
@@ -199,7 +203,9 @@ def format_msg(msg, indent=""):
                        ('–', '-'),
                        ('‘', "'"),
                        ('↑', '&uarr;'),
-                       ('\u2502', '|'), # Box drawings light vertical
+                       ('\u2502', '|'),  # Box drawings light vertical
+                       ('↓', '&darr;'),
+                       ('×', '&#10005;'),
 
         ]:
             outputStr = outputStr.replace(ci, co)
