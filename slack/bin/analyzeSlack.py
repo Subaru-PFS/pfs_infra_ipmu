@@ -44,8 +44,15 @@ class Msg:
         elif msgDict['type'] == 'message' and msgDict.get('subtype') == "channel_join":
             self.user = User('channel_join',
                              dict(display_name=msgDict.get('user_name', None)))
+        elif msgDict['type'] == 'message' and msgDict.get('subtype') == "tombstone":
+            pass
+            # 'text': 'This message was deleted.'
         else:
-            self.user = users[msgDict['user']]
+            rawUserId = msgDict['user']
+            if rawUserId not in users:  # probably cross-slack user
+                users[rawUserId] = User(rawUserId, msgDict['user_profile'])
+
+            self.user = users[rawUserId]
 
         if 'blocks' in msgDict:
             self.blocks = msgDict['blocks']
@@ -64,6 +71,7 @@ class Msg:
         if el.get('style', {}).get('code'):
             text = f"<code>{html.escape(text)}</code>"
         else:
+            # Expand user references
             while True:
                 mat = re.search(r"<@([^>]+)>", text)
                 if not mat:
@@ -71,7 +79,21 @@ class Msg:
 
                 rawUserId = mat.group(1)
                 userId = re.sub(r"\|.*$", "", rawUserId) # userId can be e.g. @U3A2P4FEH|cloomis
-                text = re.sub(f"<@{rawUserId}>", f"@{users[userId]}", text)
+                if userId in users:
+                    userName = f"@{users[userId]}"
+                else:
+                    userName = f"@{userId}"
+                text = re.sub(f"<@{rawUserId}>", userName, text)
+            #
+            # Some text has HTML-style escapes in it, which we'll deal with at the same time
+            # (html.escape will change them back)
+            #            
+            text = text.replace(r"&amp;", '&')
+
+            mat = re.search(r"(&[a-zA-Z]+;)", text)
+            if mat:
+                print(f"Found '{mat.group(1)}' in raw text {text}")
+                import pdb; pdb.set_trace() 
 
             text = html.escape(text)
             text = text.replace('\n', '<BR>')
@@ -98,11 +120,17 @@ class Msg:
                 for el2 in el['elements']:
                     if el2['type'] == 'text':
                         output.append(self.get_text(el2))
-                    elif el2['type'] == 'rich_text_section':
+                    elif el2['type'] in ['rich_text_list', 'rich_text_section']:
                         for el3 in el2['elements']:
-                            output.append(self.get_text(el3))
+                            if el3['type'] == 'user':
+                                output.append(users[el3['user_id']].name)
+                            elif el3['type'] == 'link':
+                                output.append(el3['url'])
+                            else:
+                                output.append(self.get_text(el3))
 
-                        output.append("</PRE>")
+                        if preformatted:
+                            output.append("</PRE>")
                     elif el2['type'] == 'channel':
                         channel = f"#{channels[el2['channel_id']]}"
                         output.append(channel)
@@ -118,14 +146,12 @@ class Msg:
                         user = f"@{user}"
                         output.append(user)
                     elif el2['type'] == 'broadcast':   # e.g. {'type': 'broadcast', 'range': 'channel'}
-                        brange = f"@{el2['range']}"
-                        output.append(brange)
-                        pass
-
+                        user = f"@{el2['range']}"
+                        output.append(user)
                     else:
                         raise RuntimeError(f"Complain to RHL: {el2}")
 
-                if preformatted: 
+                if preformatted:
                     output.append("<PRE>")
                         
         if width and False:
@@ -162,8 +188,10 @@ def format_msg(msg, indent=""):
     output.append("<DT>")
 
     timeStr = msg.date.strftime('%a %Y-%m-%d %I:%M%p')
-    img = f"<img width=16 height=16 src={msg.user.image_url}></img>" if msg.user.name else ""
-    output.append(f"{img}  {str(msg.user):25s}  {timeStr}")
+
+    if hasattr(msg, 'user'):
+        img = f"<img width=16 height=16 src={msg.user.image_url}></img>" if msg.user.name else ""
+        output.append(f"{img}  {str(msg.user):25s}  {timeStr}")
 
     output.append("</DT><DD>")
 
@@ -179,19 +207,31 @@ def format_msg(msg, indent=""):
                        ('…', '...'),
                        ('“', '"'),
                        ('”', '"'),
+                       ('´', "'"),
                        (' ', '_'),
                        ('—', '-'),
+                       ('⌘', '&smashp;'),   # not great
                        ('\U0010fc0e', '?'), # '?' in a square
                        ('？', '?'),
                        ('±', '&plusmn;'),
                        ('²', '&sup2;'),
+                       ('§', '&;'),
+                       ('§', '&sect;'),
                        ('µ', '&mu;'),
                        ('Å', '&Aring;'),
                        ('à', '&agrave;'),
                        ('á', '&aacute;'),
+                       ('ć', '&cacute;'),
+                       ('ë', '&euml;'),
                        ('é', '&eacute;'),
+                       ('¡', 'i'),
+                       ('í', '&iacute;'),
                        ('ó', '&oacute;'),
+                       ('ñ', '&ntilde;'),
+                       ('ö', '&ouml;'),
                        ('û', '&ucirc;'),
+                       ('ü', '&uuml;'),
+                       ('ž', '&zcaron;'),
                        ('λ', '&lambda;'),
                        ('σ', '&sigma;'),
                        ('•', '&bull;'),
@@ -219,7 +259,6 @@ def format_msg(msg, indent=""):
             else:
                 print(f"In {msg.fileName} non-ascii character: {outputStr[e.start:e.end]})", file=sys.stderr)
                 print(f"non-ascii character: {outputStr[e.start:e.end]}", file=sys.stderr)
-                #import pdb; pdb.set_trace()
                 pass
 
     output.append(outputStr)
@@ -262,6 +301,10 @@ def formatSlackArchive(rootDir, channelList=None, outputDir=None, projectName="P
     channels = {}
     for msg in data:
         channels[msg['id']] = msg['name']
+    #
+    # Add extra channels
+    #
+    channels['C01748PCVUM'] = "day3-wed-slot3a-early-science"
 
     with open(os.path.join(rootDir, "users.json")) as fd:
         data = json.load(fd)
