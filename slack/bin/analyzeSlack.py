@@ -294,17 +294,16 @@ def formatSlackArchive(rootDir, channelList=None, outputDir=None, projectName="P
     #
     # Start by defining all channels and users
     #
-    with open(os.path.join(rootDir, "channels.json")) as fd:
-        data = json.load(fd)
+    data = []
+    for fn in ["channels.json", "channels-extra.json",]:
+        if os.path.exists(fn):
+            with open(os.path.join(rootDir, fn)) as fd:
+                data += json.load(fd)
 
     global channels
     channels = {}
     for msg in data:
         channels[msg['id']] = msg['name']
-    #
-    # Add extra channels
-    #
-    channels['C01748PCVUM'] = "day3-wed-slot3a-early-science"
 
     with open(os.path.join(rootDir, "users.json")) as fd:
         data = json.load(fd)
