@@ -32,7 +32,7 @@ class Msg:
 
         self.ts = msgDict['ts']
         self.thread_ts = msgDict.get('thread_ts')
-        self.date = datetime.datetime.fromtimestamp(float(msgDict['ts']))
+        self.date = datetime.datetime.utcfromtimestamp(float(msgDict['ts']))
 
         if msgDict['type'] not in ["message"]:
             print(msg); raise RuntimeError("")
@@ -89,6 +89,8 @@ class Msg:
             # (html.escape will change them back)
             #            
             text = text.replace(r"&amp;", '&')
+            text = text.replace(r"&gt;", '>')
+            text = text.replace(r"&lt;", '<')
 
             mat = re.search(r"(&[a-zA-Z]+;)", text)
             if mat:
@@ -219,11 +221,17 @@ def format_msg(msg, indent=""):
                        ('§', '&sect;'),
                        ('µ', '&mu;'),
                        ('Å', '&Aring;'),
+                       ('À', '&Agrave;'),
                        ('à', '&agrave;'),
                        ('á', '&aacute;'),
+                       ('â', '&acirc;'),
+                       ('Ç', '&Ccedil;'),
                        ('ć', '&cacute;'),
+                       ('ç', '&ccedil;'),
                        ('ë', '&euml;'),
                        ('é', '&eacute;'),
+                       ('è', '&egrave;'),
+                       ('ê', '&ecirc;'),
                        ('¡', 'i'),
                        ('í', '&iacute;'),
                        ('ó', '&oacute;'),
@@ -231,6 +239,7 @@ def format_msg(msg, indent=""):
                        ('ö', '&ouml;'),
                        ('û', '&ucirc;'),
                        ('ü', '&uuml;'),
+                       ('ù', '&ugrave;'),
                        ('ž', '&zcaron;'),
                        ('λ', '&lambda;'),
                        ('σ', '&sigma;'),
@@ -246,6 +255,7 @@ def format_msg(msg, indent=""):
                        ('\u2502', '|'),  # Box drawings light vertical
                        ('↓', '&darr;'),
                        ('×', '&#10005;'),
+                       ('ʻ', '\''),
 
         ]:
             outputStr = outputStr.replace(ci, co)
@@ -296,7 +306,7 @@ def formatSlackArchive(rootDir, channelList=None, outputDir=None, projectName="P
     #
     data = []
     for fn in ["channels.json", "channels-extra.json",]:
-        if os.path.exists(fn):
+        if os.path.exists(os.path.join(rootDir, fn)):
             with open(os.path.join(rootDir, fn)) as fd:
                 data += json.load(fd)
 
