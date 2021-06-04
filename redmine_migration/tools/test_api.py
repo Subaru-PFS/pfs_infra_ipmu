@@ -35,7 +35,15 @@ url_jira = 'https://pfspipe.ipmu.jp/jira/rest/api/2/issue/'
 dir_att = './attachments'
 
 
-def read_redmine(write='print'):
+def createRedmineByUser(url, username, password):
+    return Redmine(url, username, password)
+
+
+def createRedmineByKey(url, key):
+    return Redmine(url, key=key)
+
+
+def read_redmine(username, password, write='print'):
     """
     Get Redmine issues using API
     Documents of python-redmine module: https://python-redmine.com/index.html
@@ -45,25 +53,19 @@ def read_redmine(write='print'):
     ----------
     """
 
-    redmine_lib = Redmine(url_lam_lib, key=redmine_apikey)
-    redmine_cli = Redmine(url_lam_cli, key=redmine_apikey)
-    redmine_iss = Redmine(url_lam_iss, key=redmine_apikey)
-
+    redmine_lib = Redmine(url_lam_lib, username=username, password=password)
     issues_lib = redmine_lib.issue.all()
-    issues_cli = redmine_cli.issue.all()
 
-    # print(vars(issues))
-    for issue in issues_cli:
+    for issue in issues_lib:
 
-        # test_id = 6147
-        content = redmine_iss.issue.get(issue.id,
+        content = redmine_lib.issue.get(issue.id,
                                         include=['children', 'attachments',
                                                  'relations', 'journals',
                                                  'watchers'])
         if write == 'print':
-            redmine_write_text(content, redmine_iss)
+            redmine_write_text(content, redmine_lib)
         elif write == 'json':
-            redmine_to_jira(content, redmine_iss)
+            redmine_to_jira(content, redmine_lib)
         else:
             print('chose either "print" or "json"')
 
@@ -176,13 +178,18 @@ def redmine_to_jira(content, redmine):
 
 def read_jira():
 
+    import pdb
+    pdb.set_trace()
+
     ofile = open('parameters_jira.txt', 'w')
 
     # params = {jira_user: jira_apikey}
     params = {jira_user: jira_pass}
     issue = 'DAMD-1'
     url = f'{url_jira}{issue}?{urllib.parse.urlencode(params)}'
+    print(f'url={url}')
     try:
+        print('here')
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req) as response:
             body = json.loads(response.read())
