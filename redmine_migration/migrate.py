@@ -245,8 +245,6 @@ def migrate_tickets(redmine_iss, jira):
     count_total = 0
     count_open_migrated = 0
     count_open_updated = 0
-    count_closed_migrated = 0
-    count_closed_skipped = 0
     count_misc_skipped = 0
 
     for r_issue in redmine_iss.issue.all():
@@ -255,11 +253,8 @@ def migrate_tickets(redmine_iss, jira):
                     f'and status [{r_issue.status.name}] ..')
         update = r_issue.id in migrated_tickets
         if r_issue.status.name in status_map:
-            # j_issue = migrate_ticket(r_issue, migrated_tickets,
-            #                          redmine_iss, jira, update)
-            from types import SimpleNamespace
-            j_issue = SimpleNamespace()
-            j_issue.key = f'DEBUG-RM-{r_issue.id}'
+            j_issue = migrate_ticket(r_issue, migrated_tickets,
+                                     redmine_iss, jira, update)
             if update:
                 logger.info('Updated Jira ticket '
                             f'{migrated_tickets[r_issue.id]} '
@@ -280,7 +275,8 @@ def migrate_tickets(redmine_iss, jira):
                 f'Processed {count_total:6} Redmine tickets. Of which:\n'
                 f'--> {count_open_migrated:6} were newly migrated tickets\n'
                 f'--> {count_open_updated:6} were updated tickets\n'
-                f'--> {count_misc_skipped:6} could not be processed and skipped.')
+                f'--> {count_misc_skipped:6} '
+                'could not be processed and skipped.')
 
 
 def main(args):
