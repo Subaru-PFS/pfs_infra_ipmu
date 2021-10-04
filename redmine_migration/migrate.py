@@ -5,6 +5,7 @@ import logging
 import redminelib
 from redminelib import Redmine
 from jira import JIRA
+from jira.exceptions import JIRAError
 import sys
 from argparse import ArgumentParser
 
@@ -13,7 +14,7 @@ dir_att = Path.home()/'temp/redmine_jira/attachments'
 dir_att.mkdir(parents=True, exist_ok=True)
 
 jira_user = 'r2j.migrate'
-jira_project = 'REDMINE1D'
+jira_project = 'TSP'
 redmine_project = 'pylibamazed'
 
 # Maps redmine statuses to Jira ones
@@ -21,7 +22,9 @@ status_map = {'Merged': 'Done',
               'Feedback': 'In Progress',
               'In Progress': 'In Progress',
               'New': 'Open',
-              'Closed': 'Done'}
+              'Closed': 'Done',
+              'Rejected': "Won't Fix",
+              'Resolved': 'Done'}
 
 
 def create_redmine(url, key):
@@ -131,6 +134,7 @@ def migrate_ticket(r_issue,
     """
 
     logger = logging.getLogger(__name__)
+
     issue_dict = {
         'project': {'key': jira_project},
         'summary': f'[RM-{r_issue.id}] {r_issue.subject}',
@@ -159,6 +163,29 @@ def migrate_ticket(r_issue,
         j_issue = jira.create_issue(fields=issue_dict)
         logger.debug(f'Created new issue {j_issue.key}')
         migrated_tickets[r_issue.id] = j_issue.key
+
+    # Try to assign version
+    logger.info(f'Looking at version for redmine issue {r_issue.id}')
+    try:
+        r_version = r_issue.fixed_version
+        j_version = None
+        for version in jira.project_versions(jira_project):
+            print(f'looking at version name {version.name}')
+            if r_version.name == version.name:
+                j_version = version
+                break
+        else:
+            j_version = jira.create_version(r_version.name,
+                                            jira_project,
+                                            r_version.name)
+        issue_dict = {'fixVersions':
+                      [{'add': [{j_version.name: j_version.name}]}]}
+        logger.info(f'Redmine issue {r_issue.id}:'
+                    f' Adding version {j_version.name} to migrated ticket.')
+        j_issue.update(fields=issue_dict)
+        logger.info(j_issue.fields.fixVersions)
+    except redminelib.exceptions.ResourceAttrError as e:
+        logger.info(f'Redmine issue {r_issue.id}: no fixed version ({e})')
 
     # No assignee information can be pulled out from redmine.
     # In meantime, use special migrator user as assignee.
@@ -215,15 +242,24 @@ def migrate_tickets(redmine_iss, jira):
 
     # Migrate open redmine tickets
     # and those which are closed, but have been previously migrated.
+    count_total = 0
     count_open_migrated = 0
     count_open_updated = 0
     count_closed_migrated = 0
+    count_closed_skipped = 0
+    count_misc_skipped = 0
 
     for r_issue in redmine_iss.issue.all():
+        count_total += 1
+        logger.info(f'Processing redmine ticket [{r_issue.id}] '
+                    f'and status [{r_issue.status.name}] ..')
         update = r_issue.id in migrated_tickets
-        if r_issue.status.name == 'New':
-            j_issue = migrate_ticket(r_issue, migrated_tickets,
-                                     redmine_iss, jira, update)
+        if r_issue.status.name in status_map:
+            # j_issue = migrate_ticket(r_issue, migrated_tickets,
+            #                          redmine_iss, jira, update)
+            from types import SimpleNamespace
+            j_issue = SimpleNamespace()
+            j_issue.key = f'DEBUG-RM-{r_issue.id}'
             if update:
                 logger.info('Updated Jira ticket '
                             f'{migrated_tickets[r_issue.id]} '
@@ -234,24 +270,17 @@ def migrate_tickets(redmine_iss, jira):
                             f'{j_issue.key} '
                             f'for open redmine ticket {r_issue.id}')
                 count_open_migrated += 1
-        elif (r_issue.status.name == 'Closed'
-              and r_issue.id in migrated_tickets):
-            logger.info(f'Updating Jira ticket {migrated_tickets[r_issue.id]} '
-                        f'for recently closed redmine ticket {r_issue.id}')
-            if not update:
-                logger.warning(f'Redmine issue {r_issue.id} is closed'
-                               ' but not in list of '
-                               'previously migrated tickets')
-            migrate_ticket(r_issue, migrated_tickets, redmine_iss, jira, True)
-            count_closed_migrated += 1
+        else:
+            logger.warning(f'Redmine issue {r_issue.id} and '
+                           f'Status {r_issue.status.name}:'
+                           'Cannot process. Skipping.')
+            count_misc_skipped += 1
 
     logger.info(f'SUMMARY:\n'
-                f'{count_open_migrated + count_open_updated} '
-                'were migrated from redmine, of which:\n'
+                f'Processed {count_total:6} Redmine tickets. Of which:\n'
                 f'--> {count_open_migrated:6} were newly migrated tickets\n'
-                f'--> {count_open_updated:6} were updated tickets, of which:\n'
-                f'------> {count_closed_migrated:6} have been recently '
-                'closed on redmine')
+                f'--> {count_open_updated:6} were updated tickets\n'
+                f'--> {count_misc_skipped:6} could not be processed and skipped.')
 
 
 def main(args):
@@ -259,13 +288,15 @@ def main(args):
     argparse = ArgumentParser(prog=__file__, add_help=False)
     argparse.add_argument('-l', '--log', default='INFO',
                           help='set logger level')
-    logging_args, _ = argparse.parse_known_args(args)
+    argparse.add_argument("-n", '--debug', action="store_true",
+                          help="Debug mode")
+    args, _ = argparse.parse_known_args(args)
 
     try:
         logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s',
-                            level=logging_args.log)
+                            level=args.log)
     except ValueError:
-        logging.error("Invalid log level: {}".format(logging_args.log))
+        logging.error("Invalid log level: {}".format(args.log))
         sys.exit(1)
 
     logger = logging.getLogger(__name__)
