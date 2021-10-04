@@ -38,6 +38,7 @@ def check_status(redmine_lib, redmine_iss):
                 print(f'issue id: [{issue.id}]')
                 print(f'issue status: [{content.status}]')
                 print(f'% done: {issue.done_ratio}')
+                print(f'Fixed version: {issue.fixed_version}')
                 print(f'Author: {issue.author}')
                 print(f'Created on: {issue.created_on}')
                 statuses.add(content.status.name)
