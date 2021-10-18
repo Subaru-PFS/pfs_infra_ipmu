@@ -4,8 +4,8 @@ from pathlib import Path
 import logging
 import redminelib
 from redminelib import Redmine
+import jira
 from jira import JIRA
-from jira.exceptions import JIRAError
 import sys
 from argparse import ArgumentParser
 
@@ -56,8 +56,8 @@ def create_jira(jira_url, oauth_token, oauth_token_secret,
         'key_cert': rsa_private_key
     }
 
-    jira = JIRA(oauth=oauth_dict, server=jira_url)
-    return jira
+    jira_iss = JIRA(oauth=oauth_dict, server=jira_url)
+    return jira_iss
 
 
 def create_redmine_jira(config_file, jira_oauth_private_key_file):
@@ -73,13 +73,13 @@ def create_redmine_jira(config_file, jira_oauth_private_key_file):
     oauth_token = config.get("jira", "oauth_token")
     oauth_token_secret = config.get("jira", "oauth_token_secret")
     consumer_key = config.get("jira", "consumer_key")
-    jira = create_jira(jira_url, oauth_token, oauth_token_secret,
-                       consumer_key, jira_oauth_private_key_file)
+    jira_iss = create_jira(jira_url, oauth_token, oauth_token_secret,
+                           consumer_key, jira_oauth_private_key_file)
 
-    return redmine_iss, jira
+    return redmine_iss, jira_iss
 
 
-def find_migrated_tickets(jira):
+def find_migrated_tickets(jira_iss):
     """Get a list of all tickets that have
     already been migrated to Jira from
     redmine.
@@ -94,7 +94,7 @@ def find_migrated_tickets(jira):
     block_num = 0
     while True:
         start_idx = block_num * block_size
-        j_issues = jira.search_issues(query, start_idx, block_size)
+        j_issues = jira_iss.search_issues(query, start_idx, block_size)
         if len(j_issues) == 0:
             # Retrieve issues until there are no more to come
             break
@@ -124,7 +124,7 @@ def print_jira_fields(j_issue):
 def migrate_ticket(r_issue,
                    migrated_tickets,
                    redmine,
-                   jira,
+                   jira_iss,
                    update):
     """Migrates a single redmine issue.
 
@@ -150,17 +150,17 @@ def migrate_ticket(r_issue,
     j_issue = None
     if update:
         migrated_j_issue_key = migrated_tickets[r_issue.id]
-        j_issue = jira.issue(migrated_j_issue_key)
+        j_issue = jira_iss.issue(migrated_j_issue_key)
         # To update attachment and comments,
         # simplest way is to delete existing ones
         # and re-add those from redmine
         for a in j_issue.fields.attachment:
-            jira.delete_attachment(a.id)
+            jira_iss.delete_attachment(a.id)
         for c in j_issue.fields.comment.comments:
             c.delete()
         j_issue.update(fields=issue_dict)
     else:
-        j_issue = jira.create_issue(fields=issue_dict)
+        j_issue = jira_iss.create_issue(fields=issue_dict)
         logger.debug(f'Created new issue {j_issue.key}')
         migrated_tickets[r_issue.id] = j_issue.key
 
@@ -169,15 +169,15 @@ def migrate_ticket(r_issue,
     try:
         r_version = r_issue.fixed_version
         j_version = None
-        for version in jira.project_versions(jira_project):
-            print(f'looking at version name {version.name}')
+        for version in jira_iss.project_versions(jira_project):
+            logger.debug(f'looking at version name {version.name}')
             if r_version.name == version.name:
                 j_version = version
                 break
         else:
-            j_version = jira.create_version(r_version.name,
-                                            jira_project,
-                                            r_version.name)
+            j_version = jira_iss.create_version(r_version.name,
+                                                jira_project,
+                                                r_version.name)
         issue_dict = {'fixVersions':
                       [{'add': [{j_version.name: j_version.name}]}]}
         logger.info(f'Redmine issue {r_issue.id}:'
@@ -189,14 +189,14 @@ def migrate_ticket(r_issue,
 
     # No assignee information can be pulled out from redmine.
     # In meantime, use special migrator user as assignee.
-    jira.assign_issue(j_issue, jira_user)
+    jira_iss.assign_issue(j_issue, jira_user)
 
     # Populate comments, attachments and status
     if r_issue.journals is not None:
-        add_comments(r_issue, jira, j_issue)
+        add_comments(r_issue, jira_iss, j_issue)
     if r_issue.attachments is not None:
-        add_attachments(r_issue, redmine, jira, j_issue)
-    jira.transition_issue(j_issue.key, status_map[r_issue.status.name])
+        add_attachments(r_issue, redmine, jira_iss, j_issue)
+    jira_iss.transition_issue(j_issue.key, status_map[r_issue.status.name])
 
     operation = 'Updated' if update else 'Migrated'
     logger.debug(f'{operation} ticket {r_issue.id} '
@@ -205,7 +205,7 @@ def migrate_ticket(r_issue,
     return j_issue
 
 
-def add_comments(r_content, jira, j_issue):
+def add_comments(r_content, jira_iss, j_issue):
     """Add all comments to Jira issue
     """
     logger = logging.getLogger(__name__)
@@ -215,12 +215,12 @@ def add_comments(r_content, jira, j_issue):
                 comment = (f'Comment by {j.user.name} '
                            f'on {j.created_on}:\n'
                            f'{j.notes}')
-                jira.add_comment(j_issue.key, comment)
+                jira_iss.add_comment(j_issue.key, comment)
         except redminelib.exceptions.ResourceAttrError as e:
             logger.debug(f'Problems adding comment. Exception is {e}')
 
 
-def add_attachments(r_issue, redmine, jira, j_issue):
+def add_attachments(r_issue, redmine, jira_iss, j_issue):
     """Add all attachments in Jira issue
     """
     logger = logging.getLogger(__name__)
@@ -228,16 +228,16 @@ def add_attachments(r_issue, redmine, jira, j_issue):
         try:
             attachment = redmine.attachment.get(a.id)
             attachment.download(savepath=dir_att, filename=a.filename)
-            jira.add_attachment(j_issue.key, f'{dir_att}/{a.filename}')
+            jira_iss.add_attachment(j_issue.key, f'{dir_att}/{a.filename}')
         except redminelib.exceptions.ResourceAttrError as e:
             logger.debug(f'Problems adding attachment. Exception is {e}')
 
 
-def migrate_tickets(redmine_iss, jira):
+def migrate_tickets(redmine_iss, jira_iss):
 
     logger = logging.getLogger(__name__)
     logger.info('Migrating tickets...')
-    migrated_tickets = find_migrated_tickets(jira)
+    migrated_tickets = find_migrated_tickets(jira_iss)
     logger.debug(f'already migrated redmine tickets: {migrated_tickets}')
 
     # Migrate open redmine tickets
@@ -247,29 +247,39 @@ def migrate_tickets(redmine_iss, jira):
     count_open_updated = 0
     count_misc_skipped = 0
 
-    for r_issue in redmine_iss.issue.all():
-        count_total += 1
-        logger.info(f'Processing redmine ticket [{r_issue.id}] '
-                    f'and status [{r_issue.status.name}] ..')
-        update = r_issue.id in migrated_tickets
-        if r_issue.status.name in status_map:
-            j_issue = migrate_ticket(r_issue, migrated_tickets,
-                                     redmine_iss, jira, update)
-            if update:
-                logger.info('Updated Jira ticket '
-                            f'{migrated_tickets[r_issue.id]} '
-                            f'for open redmine ticket {r_issue.id}')
-                count_open_updated += 1
+    with redmine_iss.session():
+        for r_issue in redmine_iss.issue.all():
+            count_total += 1
+            logger.info(f'Processing redmine ticket [{r_issue.id}] '
+                        f'and status [{r_issue.status.name}] ..')
+            update = r_issue.id in migrated_tickets
+            if r_issue.status.name in status_map:
+                # try:
+                #     j_issue = migrate_ticket(r_issue, migrated_tickets,
+                #                              redmine_iss, jira_iss, update)
+                # except (AttributeError,
+                #         redminelib.exceptions.ResourceAttrError,
+                #         jira.exceptions.JIRAError) as e:
+                #     logger.warning('Could not process redmine issue '
+                #                    f'{r_issue.id} due to {e}. Skipping.')
+                #     count_misc_skipped += 1
+                #     continue
+
+                if update:
+                    logger.info('Updated Jira ticket '
+                                f'{migrated_tickets[r_issue.id]} '
+                                f'for open redmine ticket {r_issue.id}')
+                    count_open_updated += 1
+                else:
+                    logger.info('Created new Jira ticket '
+                                # f'{j_issue.key} '
+                                f'for open redmine ticket {r_issue.id}')
+                    count_open_migrated += 1
             else:
-                logger.info('Created new Jira ticket '
-                            f'{j_issue.key} '
-                            f'for open redmine ticket {r_issue.id}')
-                count_open_migrated += 1
-        else:
-            logger.warning(f'Redmine issue {r_issue.id} and '
-                           f'Status {r_issue.status.name}:'
-                           'Cannot process. Skipping.')
-            count_misc_skipped += 1
+                logger.warning(f'Redmine issue {r_issue.id} and '
+                               f'Status {r_issue.status.name}:'
+                               'Cannot process. Skipping.')
+                count_misc_skipped += 1
 
     logger.info(f'SUMMARY:\n'
                 f'Processed {count_total:6} Redmine tickets. Of which:\n'
@@ -302,10 +312,10 @@ def main(args):
     auth_config_file = Path.home()/".oauthconfig/.redmine_jira.config"
     pem_file = Path.home()/".oauthconfig/oauth.pem"
 
-    redmine_iss, jira = create_redmine_jira(auth_config_file,
-                                            pem_file)
+    redmine_iss, jira_iss = create_redmine_jira(auth_config_file,
+                                                pem_file)
 
-    migrate_tickets(redmine_iss, jira)
+    migrate_tickets(redmine_iss, jira_iss)
 
 
 if __name__ == "__main__":

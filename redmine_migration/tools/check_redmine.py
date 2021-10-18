@@ -8,6 +8,7 @@ def check(redmine_lib, redmine_iss):
     for issue in redmine_lib.issue.all():
         print(f'issue id: [{issue.id}]')
         print(f'issue status: [{issue.status}]')
+        print(f'project: [{issue.project_id}]')
         content = redmine_iss.issue.get(issue.id)
         if content.journals is not None:
             for record in content.journals:

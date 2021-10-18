@@ -20,7 +20,8 @@ def search_tickets(jira):
             break
         block_num += 1
         for j_issue in j_issues:
-            print(j_issue.fields.summary)
+            print(f'{j_issue.fields.summary}, status=[{j_issue.fields.status}], '
+                  f'{jira.transitions(j_issue)}')
 
 
 def create_jira():
