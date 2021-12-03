@@ -141,9 +141,11 @@ def migrate_ticket(r_issue,
     if hasattr(r_issue, 'description'):
         description = r_issue.description
 
+    subject = re.sub("\n|\r", "", r_issue.subject)
+
     issue_dict = {
         'project': {'key': jira_project},
-        'summary': f'{r_issue.subject}',
+        'summary': subject,
         'description': (f'_{{color:#505f79}}'
                         f' Created on {r_issue.created_on}'
                         f' by {r_issue.author}.'
@@ -190,7 +192,7 @@ def migrate_ticket(r_issue,
         logger.info(f'Redmine issue {r_issue.id}:'
                     f' Adding version {j_version.name} to migrated ticket.')
         j_issue.update(fields=issue_dict)
-        logger.info(j_issue.fields.fixVersions)
+        logger.info(f'fixVersions:{j_issue.fields.fixVersions}')
     except redminelib.exceptions.ResourceAttrError as e:
         logger.info(f'Redmine issue {r_issue.id}: no fixed version ({e})')
 
@@ -241,7 +243,7 @@ def add_attachments(r_issue, redmine, jira_iss, j_issue):
             logger.debug(f'Problems adding attachment. Exception is {e}')
 
 
-def migrate_tickets(redmine_iss, jira_iss):
+def migrate_tickets(redmine_iss, jira_iss, tickets):
 
     logger = logging.getLogger(__name__)
     logger.info('Migrating tickets...')
@@ -258,9 +260,9 @@ def migrate_tickets(redmine_iss, jira_iss):
     with redmine_iss.session():
 
         for r_issue in redmine_iss.issue.all():
-            # if r_issue.id not in [6619]:
-            #     logger.info(f'Ignoring rm ticket {r_issue.id}...')
-            #     continue
+            if tickets and r_issue.id not in tickets:
+                logger.info(f'Ignoring rm ticket {r_issue.id}...')
+                continue
             count_total += 1
             logger.info(f'Processing redmine ticket [{r_issue.id}] '
                         f'and status [{r_issue.status.name}] ..')
@@ -273,7 +275,7 @@ def migrate_tickets(redmine_iss, jira_iss):
                         redminelib.exceptions.ResourceAttrError,
                         jira.exceptions.JIRAError) as e:
                     logger.warning('Could not process redmine issue '
-                                   f'{r_issue.id} due to {e}.'
+                                   f'{r_issue.id}, summary=[f{r_issue.subject}] due to {e}.'
                                    'Skipping.')
                     traceback.print_exc()
                     count_misc_skipped += 1
@@ -310,6 +312,8 @@ def main(args):
                           help='set logger level')
     argparse.add_argument("-n", '--debug', action="store_true",
                           help="Debug mode")
+    argparse.add_argument("-t", "--tickets", nargs="+", type=int,
+                          help="Migrate only these tickets")
     args, _ = argparse.parse_known_args(args)
 
     try:
@@ -329,8 +333,9 @@ def main(args):
     redmine_iss, jira_iss = create_redmine_jira(auth_config_file,
                                                 pem_file)
 
+    tickets = set(args.tickets) if args.tickets else None
     try:
-        migrate_tickets(redmine_iss, jira_iss)
+        migrate_tickets(redmine_iss, jira_iss, tickets)
     except requests.exceptions.ConnectionError as e:
         print(f'Stopped processing with the following exception: {e}')
 
