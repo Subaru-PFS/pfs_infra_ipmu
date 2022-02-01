@@ -48,13 +48,18 @@ class Msg:
             pass
             # 'text': 'This message was deleted.'
         else:
-            rawUserId = msgDict['user']
-            if rawUserId not in users:  # probably cross-slack user
-                users[rawUserId] = User(rawUserId, msgDict['user_profile'])
+            try:
+                rawUserId = msgDict['user']
+            except KeyError:
+                pass                            # skip if user is not written
+            else:
+                if rawUserId not in users:  # probably cross-slack user
+                    users[rawUserId] = User(rawUserId, msgDict['user_profile'])
 
-            self.user = users[rawUserId]
+                self.user = users[rawUserId]
 
-        if 'blocks' in msgDict:
+        # if 'blocks' in msgDict and msgDict['type'] != 'message':
+        if 'blocks' in msgDict and 'bot_id' not in msgDict:
             self.blocks = msgDict['blocks']
         else:
             self.blocks = [dict(elements=[dict(elements=[dict(type='text',
@@ -66,7 +71,11 @@ class Msg:
 
     @staticmethod
     def get_text(el):
-        text = el['text']
+        try:
+            text = el['text']
+        except KeyError:
+            print(el)
+            text = "--Oops. Something is wrong. :(--"
 
         if el.get('style', {}).get('code'):
             text = f"<code>{html.escape(text)}</code>"
@@ -105,57 +114,72 @@ class Msg:
     def getOutput(self, width=100):
         output = []
         for block in self.blocks:
-            for el in block['elements']:
-                preformatted = False
-                if el.get('type') == 'rich_text_preformatted':
-                    preformatted = True
-                    width = None  # disable wrapping
-
-                    output.append("<PRE>")
-                elif el.get('type') == 'rich_text_list':
-                    pass
-                else:
-                    if el.get('type') not in [None, 'rich_text_section', 'rich_text_quote']:
-                        print(el['type'])
-                        import pdb; pdb.set_trace() 
-
-                for el2 in el['elements']:
-                    if el2['type'] == 'text':
-                        output.append(self.get_text(el2))
-                    elif el2['type'] in ['rich_text_list', 'rich_text_section']:
-                        for el3 in el2['elements']:
-                            if el3['type'] == 'user':
-                                output.append(users[el3['user_id']].name)
-                            elif el3['type'] == 'link':
-                                output.append(el3['url'])
-                            else:
-                                output.append(self.get_text(el3))
-
-                        if preformatted:
-                            output.append("</PRE>")
-                    elif el2['type'] == 'channel':
-                        channel = f"#{channels[el2['channel_id']]}"
-                        output.append(channel)
-                    elif el2['type'] == 'emoji':  # e.g. {'type': 'emoji', 'name': 'slightly_smiling_face'}
-                        emoji = f":{el2['name']}:"
-                        output.append(emoji)
-                    elif el2['type'] == 'link':
-                        url = el2['url']
-                        link = f"<a href='{url}'>{url}</a>"
-                        output.append(link)
-                    elif el2['type'] == 'user':   # e.g. {'type': 'user', 'user_id': 'UA82J1WP3'}
-                        user = users.get(el2['user_id'], el2['user_id'])
-                        user = f"@{user}"
-                        output.append(user)
-                    elif el2['type'] == 'broadcast':   # e.g. {'type': 'broadcast', 'range': 'channel'}
-                        user = f"@{el2['range']}"
-                        output.append(user)
+            if 'elements' in block.keys():
+                for el in block['elements']:
+                    preformatted = False
+                    if el.get('type') == 'rich_text_preformatted':
+                        preformatted = True
+                        width = None  # disable wrapping
+    
+                        output.append("<PRE>")
+                    elif el.get('type') in ['rich_text_list']:
+                        pass
+                    elif el.get('type') in ['button']:
+                        continue
                     else:
-                        raise RuntimeError(f"Complain to RHL: {el2}")
-
-                if preformatted:
-                    output.append("<PRE>")
-                        
+                        if el.get('type') not in [None, 'rich_text_section', 'rich_text_quote']:
+                            if block['type'] != 'context':
+                                print(el['type'], self.fileName)
+                                import pdb; pdb.set_trace() 
+    
+                    for el2 in el['elements']:
+                        if el2['type'] == 'text':
+                            output.append(self.get_text(el2))
+                        elif el2['type'] in ['rich_text_list', 'rich_text_section']:
+                            for el3 in el2['elements']:
+                                if el3['type'] == 'user':
+                                    output.append(users[el3['user_id']].name)
+                                elif el3['type'] == 'link':
+                                    output.append(el3['url'])
+                                elif el3['type'] == 'channel':
+                                    channel = f"#{channels[el3['channel_id']]}"
+                                    output.append(channel)
+                                elif el3['type'] in ['rich_text_list', 'rich_text_section']:
+                                    for el4 in el3['elements']:
+                                        if el4['type'] == 'user':
+                                            output.append(users[el4['user_id']].name)
+                                        elif el4['type'] == 'link':
+                                            output.append(el4['url'])
+                                        else:
+                                            output.append(self.get_text(el4))
+                                else:
+                                    output.append(self.get_text(el3))
+    
+                            if preformatted:
+                                output.append("</PRE>")
+                        elif el2['type'] == 'channel':
+                            channel = f"#{channels[el2['channel_id']]}"
+                            output.append(channel)
+                        elif el2['type'] == 'emoji':  # e.g. {'type': 'emoji', 'name': 'slightly_smiling_face'}
+                            emoji = f":{el2['name']}:"
+                            output.append(emoji)
+                        elif el2['type'] == 'link':
+                            url = el2['url']
+                            link = f"<a href='{url}'>{url}</a>"
+                            output.append(link)
+                        elif el2['type'] == 'user':   # e.g. {'type': 'user', 'user_id': 'UA82J1WP3'}
+                            user = users.get(el2['user_id'], el2['user_id'])
+                            user = f"@{user}"
+                            output.append(user)
+                        elif el2['type'] == 'broadcast':   # e.g. {'type': 'broadcast', 'range': 'channel'}
+                            user = f"@{el2['range']}"
+                            output.append(user)
+                        else:
+                            raise RuntimeError(f"Complain to RHL: {el2}")
+    
+                    if preformatted:
+                        output.append("<PRE>")
+                            
         if width and False:
             output = textwrap.wrap(" ".join(output), width)
 
@@ -173,7 +197,10 @@ class Msg:
                 else:
                     nameStr = f['name']
 
-                output.append(f"<LI><A HREF='{f['url_private_download']}'>{nameStr}</A></LI>")
+                try:
+                    output.append(f"<LI><A HREF='{f['url_private_download']}'>{nameStr}</A></LI>")
+                except KeyError:
+                    output.append(f"<LI><A HREF='{f['url_private']}'>{nameStr}</A></LI>")
 
             output.append("</UL>")
                 
@@ -212,6 +239,7 @@ def format_msg(msg, indent=""):
                        ('´', "'"),
                        (' ', '_'),
                        ('—', '-'),
+                       ('·', '.'),
                        ('⌘', '&smashp;'),   # not great
                        ('\U0010fc0e', '?'), # '?' in a square
                        ('？', '?'),
@@ -219,6 +247,7 @@ def format_msg(msg, indent=""):
                        ('²', '&sup2;'),
                        ('§', '&;'),
                        ('§', '&sect;'),
+                       ('𝛼', '&alpha;'),
                        ('µ', '&mu;'),
                        ('Å', '&Aring;'),
                        ('À', '&Agrave;'),
@@ -230,10 +259,12 @@ def format_msg(msg, indent=""):
                        ('ç', '&ccedil;'),
                        ('ë', '&euml;'),
                        ('é', '&eacute;'),
+                       ('É', '&Eacute;'),
                        ('è', '&egrave;'),
                        ('ê', '&ecirc;'),
                        ('¡', 'i'),
                        ('í', '&iacute;'),
+                       ('Í', '&Iacute;'),
                        ('ó', '&oacute;'),
                        ('ñ', '&ntilde;'),
                        ('ö', '&ouml;'),
@@ -243,7 +274,15 @@ def format_msg(msg, indent=""):
                        ('ž', '&zcaron;'),
                        ('λ', '&lambda;'),
                        ('σ', '&sigma;'),
+                       ('Σ', '&Sigma;'),
                        ('•', '&bull;'),
+                       ('Ⰳ', '&#x2C03;'), # Glagolitic_script : ⰾⰰⰳⱁⰾⰹⱌⰰ
+                       ('ⰰ', '&#x2C30;'),
+                       ('ⰳ', '&#x2C33;'),
+                       ('ⱁ', '&#x2C41;'),
+                       ('ⰾ', '&#x2C34;'),
+                       ('ⰹ', '&#x2C39;'),
+                       ('ⱌ', '&#x2C4C;'),
                        ('􏰎', ' '),
                        ('°', '&deg'),
                        ('ï', '&iuml;'),  # really i dieresis
@@ -251,11 +290,19 @@ def format_msg(msg, indent=""):
                        ('γ', '&upsilon;'),
                        ('–', '-'),
                        ('‘', "'"),
+                       ('：', ":"),
                        ('↑', '&uarr;'),
                        ('\u2502', '|'),  # Box drawings light vertical
                        ('↓', '&darr;'),
+                       ('←', '&larr;'),
                        ('×', '&#10005;'),
                        ('ʻ', '\''),
+                       ('├', '&#9500;'),
+                       ('─', '&#9472;'),
+                       ('└', '&#9492;'),
+                       ('　', '&emsp;'), # zenkaku space
+                       ('（', '('), # zenkaku left-parenthesis
+                       ('❯', '>'), 
 
         ]:
             outputStr = outputStr.replace(ci, co)
@@ -267,7 +314,7 @@ def format_msg(msg, indent=""):
                 if False:
                     print(f"In {msg.fileName} Japanese character: {outputStr[e.start:e.end]}", file=sys.stderr)
             else:
-                print(f"In {msg.fileName} non-ascii character: {outputStr[e.start:e.end]})", file=sys.stderr)
+                print(f"In {msg.fileName} (ts: {msg.ts}) non-ascii character: {outputStr[e.start:e.end]}", file=sys.stderr)
                 print(f"non-ascii character: {outputStr[e.start:e.end]}", file=sys.stderr)
                 pass
 
