@@ -9,6 +9,7 @@ import os
 import re
 import sys
 import textwrap
+import urllib.request
 
 class User:
     def __init__(self, userId, userDict):
@@ -26,9 +27,10 @@ class User:
 
 
 class Msg:
-    def __init__(self, fileName, msgDict):
+    def __init__(self, fileName, msgDict, fileDir):
         self.fileName = fileName
         self._dict = msgDict
+        self.fileDir = fileDir 
 
         self.ts = msgDict['ts']
         self.thread_ts = msgDict.get('thread_ts')
@@ -192,15 +194,36 @@ class Msg:
                     output.append("(This file was deleted)")
                     continue
 
-                if thumb in f:
-                    nameStr = f"<IMG SRC='{f['thumb_360']}'></IMG>"
-                else:
-                    nameStr = f['name']
+                filesName = os.path.join(self.fileDir, f['id'] + '_' + f['name'])
+                if not os.path.exists(filesName):
+                    try:
+                        urllib.request.urlretrieve(f['url_private_download'], filesName)
+                    except KeyError:
+                        urllib.request.urlretrieve(f['url_private'], filesName)
+                filesStr = os.path.join(os.path.basename(self.fileDir), f['id'] + '_' + f['name'])
 
+                if thumb in f:
+                    thumbName = filesName + '.thumb.png'
+                    if not os.path.exists(thumbName):
+                        urllib.request.urlretrieve(f['thumb_360'], thumbName)
+                    nameStr = f"<IMG SRC='{filesStr}.thumb.png'></IMG>"
+                    # nameStr = f"<IMG SRC='{f['thumb_360']}'></IMG>"
+                else:
+                    #filesName = os.path.join(self.fileDir, f['id'] + '_' + f['name'])
+                    # if not os.path.exists(filesName):
+                    #    urllib.request.urlretrieve(f['url_private_download'], filesName)
+                    # filesStr = os.path.join(os.path.basename(self.fileDir), f['id'] + '_' + f['name'])
+                    nameStr = os.path.basename(filesStr)
+                    # nameStr = f['name']
+
+                '''
                 try:
                     output.append(f"<LI><A HREF='{f['url_private_download']}'>{nameStr}</A></LI>")
                 except KeyError:
                     output.append(f"<LI><A HREF='{f['url_private']}'>{nameStr}</A></LI>")
+                '''
+
+                output.append(f"<LI><A HREF='{filesStr}'>{nameStr}</A></LI>")
 
             output.append("</UL>")
                 
@@ -249,9 +272,11 @@ def format_msg(msg, indent=""):
                        ('§', '&sect;'),
                        ('𝛼', '&alpha;'),
                        ('µ', '&mu;'),
+                       ('２', '2'),  # zenkau 2
                        ('Å', '&Aring;'),
                        ('À', '&Agrave;'),
                        ('à', '&agrave;'),
+                       ('à', '&agrave;'),
                        ('á', '&aacute;'),
                        ('â', '&acirc;'),
                        ('Ç', '&Ccedil;'),
@@ -259,6 +284,7 @@ def format_msg(msg, indent=""):
                        ('ç', '&ccedil;'),
                        ('ë', '&euml;'),
                        ('é', '&eacute;'),
+                       ('é', '&eacute;'),
                        ('É', '&Eacute;'),
                        ('è', '&egrave;'),
                        ('ê', '&ecirc;'),
@@ -275,6 +301,7 @@ def format_msg(msg, indent=""):
                        ('λ', '&lambda;'),
                        ('σ', '&sigma;'),
                        ('Σ', '&Sigma;'),
+                       ('１', '1'),
                        ('•', '&bull;'),
                        ('Ⰳ', '&#x2C03;'), # Glagolitic_script : ⰾⰰⰳⱁⰾⰹⱌⰰ
                        ('ⰰ', '&#x2C30;'),
@@ -295,6 +322,7 @@ def format_msg(msg, indent=""):
                        ('\u2502', '|'),  # Box drawings light vertical
                        ('↓', '&darr;'),
                        ('←', '&larr;'),
+                       ('→', '&rarr;'),
                        ('×', '&#10005;'),
                        ('ʻ', '\''),
                        ('├', '&#9500;'),
@@ -324,7 +352,7 @@ def format_msg(msg, indent=""):
 
     return indent + f"\n{indent}".join(output)
 
-def formatSlackArchive(rootDir, channelList=None, outputDir=None, projectName="PFS"):
+def formatSlackArchive(rootDir, channelList=None, outputDir=None, fileDir='files', projectName="PFS"):
     """Format a slack archive to be human readable
 
     If channelList is not None, it's a list of channels to process (otherwise
@@ -348,6 +376,9 @@ def formatSlackArchive(rootDir, channelList=None, outputDir=None, projectName="P
 
     if not os.path.isdir(outputDir):
         os.makedirs(outputDir)
+    fileDir = outputDir + '/' +fileDir
+    if not os.path.isdir(fileDir):
+        os.makedirs(fileDir)
     #
     # Start by defining all channels and users
     #
@@ -398,7 +429,7 @@ def formatSlackArchive(rootDir, channelList=None, outputDir=None, projectName="P
                 if msg.get('subtype') in ["file_comment"]:
                     continue
 
-                msg = Msg(fileName, msg)
+                msg = Msg(fileName, msg, fileDir)
                 msgs[channelName].append(msg)
 
                 if msg.thread_ts:
@@ -465,8 +496,9 @@ if __name__ == "__main__":
     parser.add_argument('--outputDir', '-o', help="Directory to write files; default <rootDir>")
     parser.add_argument('--channels', '-c', nargs="+", help="Only process these channels")
     parser.add_argument('--project', '-p', help="Name of project; default PFS", default="PFS")
+    parser.add_argument('--fileDir', '-f', default='files', help="Directory to store downloaded files")
 
     args = parser.parse_args()
 
     formatSlackArchive(args.rootDir, channelList=args.channels,
-                       outputDir=args.outputDir, projectName=args.project)
+                       outputDir=args.outputDir, fileDir=args.fileDir, projectName=args.project)
