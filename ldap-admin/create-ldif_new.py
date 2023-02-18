@@ -366,19 +366,19 @@ if __name__ == '__main__':
             mod_tex_skel(fname_tex, fout_tex, uname, email, passwd)
 
             # compile PDF and send email
-            res = subprocess.run([cmd_latex, fout_tex], stdout=subprocess.PIPE)
+            res = subprocess.call([cmd_latex, fout_tex], stdout=subprocess.PIPE)
             # make email
             fout_tex = args.fname_addr + '.' + uname + '.pdf'
             fout_email = mod_email_skel(fname_email, fout_tex, uname, email)
 
-            res = subprocess.run(['cat', fout_email, '|', cmd_sendmail, '-i', '-t'], stdout=subprocess.PIPE)
+            res = subprocess.call(['cat', fout_email, '|', cmd_sendmail, '-i', '-t'], stdout=subprocess.PIPE)
 
             for ul in unlink_tex:
                 os.remove(args.fname_addr + '.' + uname + '.' + ul)
 
             # email to admin
             fout_email = mod_email_admin_skel(fname_email, uname, email)
-            res = subprocess.run(['cat', fout_email, '|', cmd_sendmail, '-i', '-t'], stdout=subprocess.PIPE)
+            res = subprocess.call(['cat', fout_email, '|', cmd_sendmail, '-i', '-t'], stdout=subprocess.PIPE)
 
         save_uid(fname_uid, uids)
 
