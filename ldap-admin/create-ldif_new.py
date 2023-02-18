@@ -204,7 +204,7 @@ def out_ldif_mod(supname, uname, ldifname, addr, passwd, ldif_dc,
     elif mode == 'email':
         print('replace: mail', file=fout)
         # print('disabled_account@pfs.ipmu.jp', file=fout)
-        print(addr, file=fout)
+        print('mail: {0}'.format(addr), file=fout)
     if fullname is not None and uname != fullname:
         print('', file=fout)
         print('replace: sn', file=fout)
