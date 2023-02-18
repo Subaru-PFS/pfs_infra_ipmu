@@ -77,9 +77,9 @@ def read_uid(fname_uid, uid):
     last = 0
     for al in all_lines:
         arr = al.split()
-        uid[arr[0]] = arr[1]
-        if int(arr[1]) > last:
-            last = int(arr[1])
+        uid[arr[1]] = arr[0]
+        if int(arr[0]) > last:
+            last = int(arr[0])
 
     return last, uid
 
