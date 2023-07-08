@@ -2,7 +2,8 @@ from configparser import ConfigParser
 import redminelib
 from redminelib import Redmine
 import requests
-
+from datetime import datetime
+import time
 
 def check(redmine_lib, redmine_iss):
     for issue in redmine_lib.issue.all():
@@ -34,12 +35,14 @@ def check_status(redmine_lib, redmine_iss):
         for issue in redmine_lib.issue.all():
             try:
                 content = redmine_iss.issue.get(issue.id)
+                up_ts = datetime.strptime(f'{issue.updated_on}+0100',"%Y-%m-%d %H:%M:%S%z").timestamp()
                 # print(f'{dir(issue)}')
                 print(f'issue id: [{issue.id}]')
                 print(f'issue status: [{content.status}]')
                 print(f'% done: {issue.done_ratio}')
                 print(f'Author: {issue.author}')
                 print(f'Created on: {issue.created_on}')
+                print(f'Updated on: {issue.updated_on}, timestamp : {up_ts}')
                 statuses.add(content.status.name)
             except redminelib.exceptions.ResourceAttrError as e:
                 print(f'Exception: {e}')

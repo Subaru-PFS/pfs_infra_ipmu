@@ -7,6 +7,8 @@ from redminelib import Redmine
 from jira import JIRA
 import sys
 from argparse import ArgumentParser
+import time
+from datetime import datetime
 
 # folder to save attachments temporarily
 dir_att = Path.home()/'temp/redmine_jira/attachments'
@@ -17,11 +19,13 @@ jira_project = 'REDMINE1D'
 redmine_project = 'pylibamazed'
 
 # Maps redmine statuses to Jira ones
-status_map = {'Merged': 'Done',
+status_map = {'Merged': 'Review Complete',
               'Feedback': 'In Progress',
               'In Progress': 'In Progress',
               'New': 'Open',
-              'Closed': 'Done'}
+              'Closed': 'Done',
+              'Resolved': 'Done',
+              'Rejected': 'Won\'t Fix'}
 
 
 def create_redmine(url, key):
@@ -30,7 +34,7 @@ def create_redmine(url, key):
     if url[-1] == '/':
         url = url[0:-1]
 
-    redmine = Redmine(url=url, key=key)
+    redmine = Redmine(url=url, key=key, requests={'timeout': None})
     return redmine
 
 
@@ -53,7 +57,7 @@ def create_jira(jira_url, oauth_token, oauth_token_secret,
         'key_cert': rsa_private_key
     }
 
-    jira = JIRA(oauth=oauth_dict, server=jira_url)
+    jira = JIRA(oauth=oauth_dict, server=jira_url, timeout=3600, max_retries=5) 
     return jira
 
 
@@ -131,18 +135,27 @@ def migrate_ticket(r_issue,
     """
 
     logger = logging.getLogger(__name__)
-    issue_dict = {
-        'project': {'key': jira_project},
-        'summary': f'[RM-{r_issue.id}] {r_issue.subject}',
-        'description': (f'_{{color:#505f79}}'
-                        f' Created on {r_issue.created_on}'
-                        f' by {r_issue.author}.'
-                        f' % Done: {r_issue.done_ratio}'
-                        f'{{color}}_\n\n\n'
-                        f'{r_issue.description}'),
-        'issuetype': {'name': 'Task'},
-    }
+    logger.debug(f'Redmine ID: {r_issue.id}')
+    try:
+        issue_dict = {
+            'project': {'key': jira_project},
+            'summary': f'[RM-{r_issue.id}] {r_issue.subject}',
+            'description': (f'_{{color:#505f79}}'
+                            f' Created on {r_issue.created_on}'
+                            f' by {r_issue.author}.'
+                            f' % Done: {r_issue.done_ratio}'
+                            f'{{color}}_\n\n\n'
+                            f'{r_issue.description}'),
+            'issuetype': {'name': 'Task'},
+        }
+    except redminelib.exceptions.ResourceAttrError:
+        logger.debug(f'redmine {r_issue.id} doen\'t have sufficit attribute')
+        counter = -1
+        return None, counter
+        
 
+    r_up_ts_min = datetime.strptime('2018-05-01 00:00:00+0100', "%Y-%m-%d %H:%M:%S%z").timestamp() 
+    counter = 0
     j_issue = None
     if update:
         migrated_j_issue_key = migrated_tickets[r_issue.id]
@@ -150,15 +163,29 @@ def migrate_ticket(r_issue,
         # To update attachment and comments,
         # simplest way is to delete existing ones
         # and re-add those from redmine
-        for a in j_issue.fields.attachment:
-            jira.delete_attachment(a.id)
-        for c in j_issue.fields.comment.comments:
-            c.delete()
-        j_issue.update(fields=issue_dict)
+        j_up_ts = datetime.strptime(j_issue.fields.updated, "%Y-%m-%dT%H:%M:%S.%f%z").timestamp()
+        r_up_ts = datetime.strptime(f'{r_issue.updated_on}+0100',"%Y-%m-%d %H:%M:%S%z").timestamp()
+        # if j_up_ts > r_up_ts:
+        if j_up_ts > r_up_ts and j_issue.fields.status.name == status_map[r_issue.status.name]:
+            logger.debug('No update: Skipped ')
+            counter = -1
+            return j_issue, counter
+        else:
+            for a in j_issue.fields.attachment:
+                jira.delete_attachment(a.id)
+            for c in j_issue.fields.comment.comments:
+                c.delete()
+            j_issue.update(fields=issue_dict)
     else:
-        j_issue = jira.create_issue(fields=issue_dict)
-        logger.debug(f'Created new issue {j_issue.key}')
-        migrated_tickets[r_issue.id] = j_issue.key
+        r_up_ts = datetime.strptime(f'{r_issue.created_on}+0100',"%Y-%m-%d %H:%M:%S%z").timestamp()
+        if r_up_ts > r_up_ts_min:
+            j_issue = jira.create_issue(fields=issue_dict)
+            logger.debug(f'Created new issue {j_issue.key}')
+            migrated_tickets[r_issue.id] = j_issue.key
+        else:
+            logger.debug('Old ticket: Skipped ')
+            counter = -99
+            return None, counter
 
     # No assignee information can be pulled out from redmine.
     # In meantime, use special migrator user as assignee.
@@ -175,7 +202,7 @@ def migrate_ticket(r_issue,
     logger.debug(f'{operation} ticket {r_issue.id} '
                  f'to JIRA {j_issue.key} successfully.')
 
-    return j_issue
+    return j_issue, counter
 
 
 def add_comments(r_content, jira, j_issue):
@@ -217,14 +244,28 @@ def migrate_tickets(redmine_iss, jira):
     # and those which are closed, but have been previously migrated.
     count_open_migrated = 0
     count_open_updated = 0
+    count_skipped = 0
     count_closed_migrated = 0
+    count_total = 0
+    count_total_limit = 20
 
     for r_issue in redmine_iss.issue.all():
+        time.sleep(0.5)
         update = r_issue.id in migrated_tickets
-        if r_issue.status.name == 'New':
-            j_issue = migrate_ticket(r_issue, migrated_tickets,
+        if r_issue.status.name in ['New', 'In Progress', 'Merged', 'Feedback']:
+            j_issue, counter = migrate_ticket(r_issue, migrated_tickets,
                                      redmine_iss, jira, update)
-            if update:
+            if j_issue == None:
+                logger.info(f'Skipped redmine issue {r_issue.id} missing neseccary attribite')
+            elif counter == -99:
+                logger.info(f'Reached to the older ticket than limit. I stop migration.')
+                counter = -1
+                break
+            elif counter == -1:
+                logger.info('No update with Jira ticket '
+                            f'{migrated_tickets[r_issue.id]} '
+                            f'for open redmine ticket {r_issue.id}')
+            elif update:
                 logger.info('Updated Jira ticket '
                             f'{migrated_tickets[r_issue.id]} '
                             f'for open redmine ticket {r_issue.id}')
@@ -234,16 +275,34 @@ def migrate_tickets(redmine_iss, jira):
                             f'{j_issue.key} '
                             f'for open redmine ticket {r_issue.id}')
                 count_open_migrated += 1
-        elif (r_issue.status.name == 'Closed'
+        elif (r_issue.status.name in ['Closed', 'Resolved', 'Rejected']
               and r_issue.id in migrated_tickets):
-            logger.info(f'Updating Jira ticket {migrated_tickets[r_issue.id]} '
-                        f'for recently closed redmine ticket {r_issue.id}')
-            if not update:
-                logger.warning(f'Redmine issue {r_issue.id} is closed'
-                               ' but not in list of '
-                               'previously migrated tickets')
-            migrate_ticket(r_issue, migrated_tickets, redmine_iss, jira, True)
-            count_closed_migrated += 1
+            j_issue, counter = migrate_ticket(r_issue, migrated_tickets, redmine_iss, jira, True)
+            logger.debug(f'{j_issue}')
+            if j_issue == None:
+                logger.info(f'Skipped redmine issue {r_issue.id} missing neseccary attribite')
+            elif counter == -99:
+                logger.info(f'Reached to the older ticket than limit. I stop migration.')
+                counter = -1
+                break
+            else:
+                if not update:
+                    logger.warning(f'Redmine issue {r_issue.id} is closed'
+                                   ' but not in list of '
+                                   'previously migrated tickets')
+                if counter == -1:
+                    logger.info(f'No update with Jira ticket {migrated_tickets[r_issue.id]} '
+                                f'for recently closed redmine ticket {r_issue.id}')
+                else:
+                    logger.info(f'Updated Jira ticket {migrated_tickets[r_issue.id]} '
+                            f'for recently closed redmine ticket {r_issue.id}')
+                    count_closed_migrated += 1
+        else:
+            counter = -1
+        count_total = count_total + 1 + counter
+        if count_total >= count_total_limit:
+            logger.info(f'Worked on {count_total_limit} tickets. I stop migration for now.')
+            break
 
     logger.info(f'SUMMARY:\n'
                 f'{count_open_migrated + count_open_updated} '
