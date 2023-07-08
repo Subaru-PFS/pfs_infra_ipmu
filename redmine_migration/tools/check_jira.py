@@ -1,5 +1,7 @@
 from configparser import ConfigParser
 from jira import JIRA
+from datetime import datetime
+import time
 
 jira_project = 'TSP'
 
@@ -21,6 +23,10 @@ def search_tickets(jira):
         block_num += 1
         for j_issue in j_issues:
             print(j_issue.fields.summary)
+            j_uptime = datetime.strptime(j_issue.fields.updated, "%Y-%m-%dT%H:%M:%S.%f%z")
+            ts_jira = j_uptime.timestamp()
+            ts_now = time.time()
+            print(f"Time since update:{ts_jira-ts_now}")
 
 
 def create_jira():
