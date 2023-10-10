@@ -400,7 +400,7 @@ if __name__ == '__main__':
                 os.remove(args.fname_addr + '.' + uname + '.' + ul)
 
             # email to admin
-            print('Sending email to admins'...)
+            print('Sending email to admins...')
             fout_email = mod_email_admin_skel(fname_admin, uname, mail_admin)
             res = subprocess.Popen([cmd_sendmail], shell=True,
                                    stdin=subprocess.PIPE,
