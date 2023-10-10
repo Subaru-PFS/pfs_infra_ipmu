@@ -33,7 +33,7 @@ cmd_add = 'ldapadd    -H ldap://{0} -D {1} -W -x -f '.format(opt_ldaphost, opt_l
 cmd_mod = 'ldapmodify -H ldap://{0} -D {1} -W -x -f '.format(opt_ldaphost, opt_ldapadm)
 
 cmd_latex = '/usr/bin/pdflatex'
-cmd_sendmail = '/usr/bin/sendmail'
+cmd_sendmail = '/usr/sbin/sendmail'
 
 # script and files
 fname_uid = '00uid.list'
