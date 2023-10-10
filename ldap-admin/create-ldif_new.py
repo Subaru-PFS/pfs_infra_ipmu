@@ -29,11 +29,13 @@ ldif_dc_web = 'dc=web,dc=pfs,dc=ipmu,dc=jp'
 ldif_dc_shell = 'dc=shell,dc=pfs,dc=ipmu,dc=jp'
 
 # default commands
-cmd_add = 'ldapadd    -H ldap://{0} -D {1} -W -x -f '.format(opt_ldaphost, opt_ldapadm)
-cmd_mod = 'ldapmodify -H ldap://{0} -D {1} -W -x -f '.format(opt_ldaphost, opt_ldapadm)
+cmd_add = 'ldapadd    -H ldap://{0} -D {1} -W -x -f '.format(opt_ldaphost,
+                                                             opt_ldapadm)
+cmd_mod = 'ldapmodify -H ldap://{0} -D {1} -W -x -f '.format(opt_ldaphost,
+                                                             opt_ldapadm)
 
 cmd_latex = '/usr/bin/pdflatex'
-cmd_sendmail = '/usr/sbin/sendmail'
+cmd_sendmail = '/usr/sbin/sendmail -i -t'
 
 # script and files
 fname_uid = '00uid.list'
@@ -41,11 +43,15 @@ fname_tex = 'skel.tex'
 fname_email = 'skel.email'
 fname_admin = 'skel.admin.email'
 
+# other parameters
+mail_admin = 'pfs@pfs.ipmu.jp'
+
 
 def get_option():
 
     head_str = 'Availabele options are:'
-    tail_str = 'target_list is a filename with lines by "<email> <username> <fullname>"'\
+    tail_str = 'target_list is a filename with lines by'\
+               '"<email> <username> <fullname>"'\
                'uid is taken from "00uid.list" file (last +1)'\
                'default gid is from opt_gid (2000)'\
                'fullname is an option, from third to the end when defined.'
@@ -77,9 +83,9 @@ def read_uid(fname_uid, uid):
     last = 0
     for al in all_lines:
         arr = al.split()
-        uid[arr[1]] = arr[0]
-        if int(arr[0]) > last:
-            last = int(arr[0])
+        uid[arr[0]] = arr[1]
+        if int(arr[1]) > last:
+            last = int(arr[1])
 
     return last, uid
 
@@ -130,13 +136,16 @@ def mod_email_skel(skel, pdfname, uname, email):
 
     # attach attachment
     with open(pdfname, 'rb') as fh:
+        """
         while True:
             att = fh.read(57)
             if att:
                 string = string + str(base64.encodestring(att)) + '\n'
             else:
                 break
-    string = string + '\n' + mime_boundary + '--'
+        """
+        string = string + base64.encodebytes(fh.read()).decode("ascii")
+    string = string + '\n--' + mime_boundary + '--'
 
     # omit \r \n at the begining of the string
     while (string[0] == '\r' or string[0] == '\n'):
@@ -163,8 +172,10 @@ def mod_email_admin_skel(skel, uname, email):
 def out_ldif_new(supname, uname, ldifname, addr, passwd, ldif_dc,
                  uid=None, fullname=None):
 
-    if uid is None: uid = uid_undefined
-    if fullname is None: fullname = uname
+    if uid is None:
+        uid = uid_undefined
+    if fullname is None:
+        fullname = uname
 
     fout = open(ldifname, 'w')
     print('dn: cn={0},ou=Users,{1}'.format(uname, ldif_dc), file=fout)
@@ -193,7 +204,8 @@ def out_ldif_new(supname, uname, ldifname, addr, passwd, ldif_dc,
 def out_ldif_mod(supname, uname, ldifname, addr, passwd, ldif_dc,
                  mode='passwd', uid=None, fullname=None, cmd_mod_done=0):
 
-    if uid is None: uid = uid_undefined
+    if uid is None:
+        uid = uid_undefined
 
     fout = open(ldifname, 'a')
     print('dn: cn={0},ou=Users,{1}'.format(uname, ldif_dc), file=fout)
@@ -221,7 +233,8 @@ def out_ldif_mod(supname, uname, ldifname, addr, passwd, ldif_dc,
     fout.close()
 
 
-def out_ldif_mod_group(supname, ldifname, add_group, all_new, cmd_mod_done, remove=0):
+def out_ldif_mod_group(supname, ldifname, add_group, all_new, cmd_mod_done,
+                       remove=0):
 
     fout = open(ldifname, 'a')
 
@@ -247,7 +260,8 @@ def out_ldif_mod_group(supname, ldifname, add_group, all_new, cmd_mod_done, remo
     return cmd_mod_done
 
 
-def out_ldif_mod_group_jira(supname, ldifname, add_group, all_new, ldif_dc, cmd_mod_done):
+def out_ldif_mod_group_jira(supname, ldifname, add_group, all_new, ldif_dc,
+                            cmd_mod_done):
 
     fout = open(ldifname, 'a')
 
@@ -333,7 +347,8 @@ if __name__ == '__main__':
                          uid=uids[uname], fullname=None, cmd_mod_done=1)
 
         for lg in ldefgroup:
-            out_ldif_mod_group(args.fname_addr, ldifout, lg, all_new, 1, remove=1)
+            out_ldif_mod_group(args.fname_addr, ldifout, lg, all_new, 1,
+                               remove=1)
 
         for lg in ldefgroup_disabled:
             out_ldif_mod_group(args.fname_addr, ldifout, lg, all_new, 1)
@@ -357,29 +372,40 @@ if __name__ == '__main__':
 
             ldifout = args.fname_addr + '.' + uname + '.ldif'
             if args.reset:
-                out_ldif_mod(args.fname_addr, uname, ldifout, email, passwd, ldif_dc,
+                out_ldif_mod(args.fname_addr, uname, ldifout, email, passwd,
+                             ldif_dc,
                              mode='passwd', uid=uids[uname], fullname=fullname)
             else:
-                out_ldif_new(args.fname_addr, uname, ldifout, email, passwd, ldif_dc,
+                out_ldif_new(args.fname_addr, uname, ldifout, email, passwd,
+                             ldif_dc,
                              uid=uids[uname], fullname=fullname)
 
             fout_tex = args.fname_addr + '.' + uname + '.tex'
             mod_tex_skel(fname_tex, fout_tex, uname, email, passwd)
 
             # compile PDF and send email
-            res = subprocess.call([cmd_latex, fout_tex], stdout=subprocess.PIPE)
+            print('Creating pdf file from {0}...'.format(fout_tex))
+            res = subprocess.call([cmd_latex, fout_tex])
             # make email
             fout_tex = args.fname_addr + '.' + uname + '.pdf'
             fout_email = mod_email_skel(fname_email, fout_tex, uname, email)
+            print('Sending email to user...')
+            res = subprocess.Popen([cmd_sendmail], shell=True,
+                                   stdin=subprocess.PIPE,
+                                   universal_newlines=True)
+            res.communicate(fout_email)
 
-            res = subprocess.call(['cat', fout_email, '|', cmd_sendmail, '-i', '-t'], stdout=subprocess.PIPE)
-
+            print('Deleting output file from pdflatex...')
             for ul in unlink_tex:
                 os.remove(args.fname_addr + '.' + uname + '.' + ul)
 
             # email to admin
-            fout_email = mod_email_admin_skel(fname_email, uname, email)
-            res = subprocess.call(['cat', fout_email, '|', cmd_sendmail, '-i', '-t'], stdout=subprocess.PIPE)
+            print('Sending email to admins'...)
+            fout_email = mod_email_admin_skel(fname_admin, uname, mail_admin)
+            res = subprocess.Popen([cmd_sendmail], shell=True,
+                                   stdin=subprocess.PIPE,
+                                   universal_newlines=True)
+            res.communicate(fout_email)
 
         save_uid(fname_uid, uids)
 
@@ -395,4 +421,5 @@ if __name__ == '__main__':
                 for lg in ldefgroup_jira:
                     cmd_mod_done = \
                              out_ldif_mod_group_jira(args.fname_addr, ldifout,
-                                                     lg, all_new, ldif_dc, cmd_mod_done)
+                                                     lg, all_new, ldif_dc,
+                                                     cmd_mod_done)
