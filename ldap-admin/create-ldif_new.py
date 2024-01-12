@@ -255,7 +255,7 @@ def out_ldif_mod_group(supname, ldifname, add_group, all_new, cmd_mod_done,
         fout = open(outname, 'a')
 
         print('{0} {1}'.format(cmd_add, ldifname), file=fout)
-        cmd_mod_done == 1
+        cmd_mod_done = 1
 
     return cmd_mod_done
 
@@ -279,7 +279,7 @@ def out_ldif_mod_group_jira(supname, ldifname, add_group, all_new, ldif_dc,
         fout = open(outname, 'a')
 
         print('{0} {1}'.format(cmd_add, ldifname), file=fout)
-        cmd_mod_done == 1
+        cmd_mod_done = 1
 
     return cmd_mod_done
 

@@ -114,6 +114,7 @@ class Msg:
         return text
 
     def getOutput(self, width=100):
+        dlfile_list = glob.glob(self.fileDir+'/*')
         output = []
         for block in self.blocks:
             if 'elements' in block.keys():
@@ -123,7 +124,7 @@ class Msg:
                         preformatted = True
                         width = None  # disable wrapping
     
-                        output.append("<PRE>")
+                        output.append("<PRE style=\"white-space: pre-wrap ;\">")
                     elif el.get('type') in ['rich_text_list']:
                         pass
                     elif el.get('type') in ['button']:
@@ -154,6 +155,9 @@ class Msg:
                                             output.append(el4['url'])
                                         else:
                                             output.append(self.get_text(el4))
+                                elif el3['type'] == 'emoji':
+                                    emoji = '&#x'+el3['unicode']+';'
+                                    output.append(emoji)
                                 else:
                                     output.append(self.get_text(el3))
     
@@ -163,7 +167,10 @@ class Msg:
                             channel = f"#{channels[el2['channel_id']]}"
                             output.append(channel)
                         elif el2['type'] == 'emoji':  # e.g. {'type': 'emoji', 'name': 'slightly_smiling_face'}
-                            emoji = f":{el2['name']}:"
+                            if 'unicode' in el2:
+                                emoji = '&#x'+el2['unicode']+';'
+                            else:
+                                emoji = f":{el2['name']}:"
                             output.append(emoji)
                         elif el2['type'] == 'link':
                             url = el2['url']
@@ -180,7 +187,7 @@ class Msg:
                             raise RuntimeError(f"Complain to RHL: {el2}")
     
                     if preformatted:
-                        output.append("<PRE>")
+                        output.append("<PRE style=\"white-space: pre-wrap ;\">")
                             
         if width and False:
             output = textwrap.wrap(" ".join(output), width)
@@ -194,26 +201,36 @@ class Msg:
                     output.append("(This file was deleted)")
                     continue
 
-                filesName = os.path.join(self.fileDir, f['id'] + '_' + f['name'])
+                if f.get('mode') == "hidden_by_limit":
+                    tmp_l = [s for s in dlfile_list if f['id'] in s]
+                    filesName = tmp_l[0]
+                    filesStr = os.path.join(os.path.basename(self.fileDir) , filesName.rsplit('/')[-1])
+                else:
+                    filesName = os.path.join(self.fileDir, f['id'] + '_' + f['name'])
+                    filesStr = os.path.join(os.path.basename(self.fileDir), f['id'] + '_' + f['name'])
+                # print(filesName,filesStr)
+
                 if not os.path.exists(filesName):
                     try:
                         urllib.request.urlretrieve(f['url_private_download'], filesName)
                     except KeyError:
                         urllib.request.urlretrieve(f['url_private'], filesName)
-                filesStr = os.path.join(os.path.basename(self.fileDir), f['id'] + '_' + f['name'])
 
+                thumbName = filesName + '.thumb.png'
                 if thumb in f:
-                    thumbName = filesName + '.thumb.png'
                     if not os.path.exists(thumbName):
                         urllib.request.urlretrieve(f['thumb_360'], thumbName)
                     nameStr = f"<IMG SRC='{filesStr}.thumb.png'></IMG>"
                     # nameStr = f"<IMG SRC='{f['thumb_360']}'></IMG>"
                 else:
+                    if os.path.exists(thumbName):
+                        nameStr = f"<IMG SRC='{filesStr}.thumb.png'></IMG>"
                     #filesName = os.path.join(self.fileDir, f['id'] + '_' + f['name'])
                     # if not os.path.exists(filesName):
                     #    urllib.request.urlretrieve(f['url_private_download'], filesName)
                     # filesStr = os.path.join(os.path.basename(self.fileDir), f['id'] + '_' + f['name'])
-                    nameStr = os.path.basename(filesStr)
+                    else:
+                        nameStr = os.path.basename(filesStr)
                     # nameStr = f['name']
 
                 '''
@@ -266,12 +283,15 @@ def format_msg(msg, indent=""):
                        ('⌘', '&smashp;'),   # not great
                        ('\U0010fc0e', '?'), # '?' in a square
                        ('？', '?'),
+                       ('、', ','),  # zenkau kuten
                        ('±', '&plusmn;'),
                        ('²', '&sup2;'),
                        ('§', '&;'),
                        ('§', '&sect;'),
+                       ('α', '&alpha;'),
                        ('𝛼', '&alpha;'),
                        ('µ', '&mu;'),
+                       ('１', '1'),  # zenkau 1
                        ('２', '2'),  # zenkau 2
                        ('Å', '&Aring;'),
                        ('À', '&Agrave;'),
@@ -279,6 +299,7 @@ def format_msg(msg, indent=""):
                        ('à', '&agrave;'),
                        ('á', '&aacute;'),
                        ('â', '&acirc;'),
+                       ('ā', '&amacr;'),
                        ('Ç', '&Ccedil;'),
                        ('ć', '&cacute;'),
                        ('ç', '&ccedil;'),
@@ -301,8 +322,9 @@ def format_msg(msg, indent=""):
                        ('λ', '&lambda;'),
                        ('σ', '&sigma;'),
                        ('Σ', '&Sigma;'),
-                       ('１', '1'),
+                       ('þ', '&thorn;'),
                        ('•', '&bull;'),
+                       ('◯', '&#9711;'),
                        ('Ⰳ', '&#x2C03;'), # Glagolitic_script : ⰾⰰⰳⱁⰾⰹⱌⰰ
                        ('ⰰ', '&#x2C30;'),
                        ('ⰳ', '&#x2C33;'),
@@ -331,6 +353,8 @@ def format_msg(msg, indent=""):
                        ('　', '&emsp;'), # zenkaku space
                        ('（', '('), # zenkaku left-parenthesis
                        ('❯', '>'), 
+                       ('≲', '&#8830;'),
+                       ('‎', ''),  # left-to-right mark
 
         ]:
             outputStr = outputStr.replace(ci, co)
@@ -352,7 +376,7 @@ def format_msg(msg, indent=""):
 
     return indent + f"\n{indent}".join(output)
 
-def formatSlackArchive(rootDir, channelList=None, outputDir=None, fileDir='files', projectName="PFS"):
+def formatSlackArchive(rootDir, channelList=None, outputDir=None, fileDir='_files', projectName="PFS"):
     """Format a slack archive to be human readable
 
     If channelList is not None, it's a list of channels to process (otherwise
@@ -420,7 +444,7 @@ def formatSlackArchive(rootDir, channelList=None, outputDir=None, fileDir='files
         msgs[channelName] = []
         threads[channelName] = {}
 
-        inputFiles[channelName] = sorted(glob.glob(os.path.join(rootDir, channelName, "*.json")))
+        inputFiles[channelName] = sorted(glob.glob(os.path.join(rootDir, channelName, "20*.json")))
         for fileName in inputFiles[channelName]:
             with open(fileName) as fd:
                 data = json.load(fd)
@@ -496,7 +520,7 @@ if __name__ == "__main__":
     parser.add_argument('--outputDir', '-o', help="Directory to write files; default <rootDir>")
     parser.add_argument('--channels', '-c', nargs="+", help="Only process these channels")
     parser.add_argument('--project', '-p', help="Name of project; default PFS", default="PFS")
-    parser.add_argument('--fileDir', '-f', default='files', help="Directory to store downloaded files")
+    parser.add_argument('--fileDir', '-f', default='_files', help="Directory to store downloaded files")
 
     args = parser.parse_args()
 
